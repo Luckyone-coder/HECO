@@ -94,6 +94,10 @@ LogicalResult batchArithmeticOperation(IRRewriter &rewriter, MLIRContext *contex
                     // we eventually want this as a scalar, which means slot 0
                     target_slot = 0;
                 break;
+            }else if (auto sigmoid_op = dyn_cast_or_null<fhe::SigmoidOp>(u))
+            {
+                target_slot = 0; // sigmoid 输出标量时，默认槽位 0
+                break;
             }
         }
 

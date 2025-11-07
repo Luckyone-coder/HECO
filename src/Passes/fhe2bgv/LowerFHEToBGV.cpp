@@ -1,6 +1,6 @@
-#include "heco/Passes/fhe2bfv/LowerFHEToBFV.h"
+#include "heco/Passes/fhe2bgv/LowerFHEToBGV.h"
 #include <iostream>
-#include "heco/IR/BFV/BFVDialect.h"
+#include "heco/IR/BGV/BGVDialect.h"
 #include "heco/IR/FHE/FHEDialect.h"
 #include "heco/IR/Poly/PolyDialect.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -10,13 +10,13 @@
 using namespace mlir;
 using namespace heco;
 
-void LowerFHEToBFVPass::getDependentDialects(mlir::DialectRegistry &registry) const
+void LowerFHEToBGVPass::getDependentDialects(mlir::DialectRegistry &registry) const
 {
-    registry.insert<bfv::BFVDialect>();
+    registry.insert<bgv::BGVDialect>();
     registry.insert<poly::PolyDialect>();
 }
 
-class BFVRotatePattern final : public OpConversionPattern<fhe::RotateOp>
+class BGVRotatePattern final : public OpConversionPattern<fhe::RotateOp>
 {
 protected:
     using OpConversionPattern<fhe::RotateOp>::typeConverter;
@@ -46,16 +46,16 @@ public:
             materialized_operand = o;
 
         rewriter.setInsertionPoint(op);
-        auto poly_type = dstType.dyn_cast<bfv::CiphertextType>().getElementType();
+        auto poly_type = dstType.dyn_cast<bgv::CiphertextType>().getElementType();
         // TODO: MATCH PARAMETERS PROPERLY OR GET ACTUAL KEY FROM SOMEWHERE
-        // auto key_type = bfv::GaloisKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
-        // auto keys = rewriter.create<bfv::LoadGaloisKeysOp>(op.getLoc(), key_type, "foo.glk", "glk.parms");
-        rewriter.replaceOpWithNewOp<bfv::RotateOp>(op, dstType, materialized_operand, op.getI());
+        // auto key_type = bgv::GaloisKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
+        // auto keys = rewriter.create<bgv::LoadGaloisKeysOp>(op.getLoc(), key_type, "foo.glk", "glk.parms");
+        rewriter.replaceOpWithNewOp<bgv::RotateOp>(op, dstType, materialized_operand, op.getI());
         return success();
     };
 };
 
-class BFVCombinePattern final : public OpConversionPattern<fhe::CombineOp>
+class BGVCombinePattern final : public OpConversionPattern<fhe::CombineOp>
 {
 protected:
     using OpConversionPattern<fhe::CombineOp>::typeConverter;
@@ -71,7 +71,7 @@ public:
     };
 };
 
-class BFVConstPattern final : public OpConversionPattern<fhe::ConstOp>
+class BGVConstPattern final : public OpConversionPattern<fhe::ConstOp>
 {
 protected:
     using OpConversionPattern<fhe::ConstOp>::typeConverter;
@@ -87,7 +87,7 @@ public:
     };
 };
 
-class BFVMaterializePattern final : public OpConversionPattern<fhe::MaterializeOp>
+class BGVMaterializePattern final : public OpConversionPattern<fhe::MaterializeOp>
 {
 protected:
     using OpConversionPattern<fhe::MaterializeOp>::typeConverter;
@@ -122,12 +122,12 @@ public:
             materialized_operands.push_back(o);
         }
 
-        rewriter.replaceOpWithNewOp<bfv::MaterializeOp>(op, TypeRange(dstType), materialized_operands);
+        rewriter.replaceOpWithNewOp<bgv::MaterializeOp>(op, TypeRange(dstType), materialized_operands);
         return success();
     }
 };
 
-class BFVInsertPattern final : public OpConversionPattern<fhe::InsertOp>
+class BGVInsertPattern final : public OpConversionPattern<fhe::InsertOp>
 {
 protected:
     using OpConversionPattern<fhe::InsertOp>::typeConverter;
@@ -163,13 +163,13 @@ public:
             }
         }
 
-        rewriter.replaceOpWithNewOp<bfv::InsertOp>(
+        rewriter.replaceOpWithNewOp<bgv::InsertOp>(
             op, TypeRange(dstType), materialized_operands[0], materialized_operands[1], op.getIAttr());
         return success();
     }
 };
 
-class BFVExtractPattern final : public OpConversionPattern<fhe::ExtractOp>
+class BGVExtractPattern final : public OpConversionPattern<fhe::ExtractOp>
 {
 protected:
     using OpConversionPattern<fhe::ExtractOp>::typeConverter;
@@ -203,14 +203,14 @@ public:
             materialized_operands.push_back(o);
         }
 
-        rewriter.replaceOpWithNewOp<bfv::ExtractOp>(op, TypeRange(dstType), materialized_operands[0], op.getIAttr());
+        rewriter.replaceOpWithNewOp<bgv::ExtractOp>(op, TypeRange(dstType), materialized_operands[0], op.getIAttr());
         return success();
     }
 };
 
 /// Basic Pattern for operations without attributes.
 template <typename OpType>
-class BFVBasicPattern final : public OpConversionPattern<OpType>
+class BGVBasicPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -251,21 +251,21 @@ public:
         if (std::is_same<OpType, fhe::AddOp>())
         {
             if (op->getNumOperands() > 2)
-                rewriter.replaceOpWithNewOp<bfv::AddManyOp>(op, TypeRange(dstType), materialized_operands);
+                rewriter.replaceOpWithNewOp<bgv::AddManyOp>(op, TypeRange(dstType), materialized_operands);
             else
-                rewriter.replaceOpWithNewOp<bfv::AddOp>(op, TypeRange(dstType), materialized_operands);
+                rewriter.replaceOpWithNewOp<bgv::AddOp>(op, TypeRange(dstType), materialized_operands);
             return success();
         }
         // Subtractions
         else if (std::is_same<OpType, fhe::SubOp>())
         {
-            rewriter.replaceOpWithNewOp<bfv::SubOp>(op, TypeRange(dstType), materialized_operands);
+            rewriter.replaceOpWithNewOp<bgv::SubOp>(op, TypeRange(dstType), materialized_operands);
             return success();
         }
         // Sigmoid
         else if (std::is_same<OpType, fhe::SigmoidOp>())
         {
-            rewriter.replaceOpWithNewOp<bfv::SigmoidOp>(op, TypeRange(dstType), materialized_operands);
+            rewriter.replaceOpWithNewOp<bgv::SigmoidOp>(op, TypeRange(dstType), materialized_operands);
             return success();
         }
         // Multiplications
@@ -275,21 +275,21 @@ public:
             {
                 // TODO: Handle ptxt in multiplies with more than two arguments
                 rewriter.setInsertionPoint(op);
-                auto poly_type = op.getType().template dyn_cast<bfv::CiphertextType>().getElementType();
+                auto poly_type = op.getType().template dyn_cast<bgv::CiphertextType>().getElementType();
                 // TODO: MATCH PARAMETERS PROPERLY OR GET ACTUAL KEY FROM SOMEWHERE
-                // auto key_type = bfv::RelinKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
-                // auto keys = rewriter.create<bfv::LoadRelinKeysOp>(op.getLoc(), key_type, "foo.rlk", "rlk.parms");
+                // auto key_type = bgv::RelinKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
+                // auto keys = rewriter.create<bgv::LoadRelinKeysOp>(op.getLoc(), key_type, "foo.rlk", "rlk.parms");
                 auto new_op =
-                    rewriter.replaceOpWithNewOp<bfv::MultiplyManyOp>(op, TypeRange(dstType), materialized_operands);
+                    rewriter.replaceOpWithNewOp<bgv::MultiplyManyOp>(op, TypeRange(dstType), materialized_operands);
                 rewriter.setInsertionPointAfter(new_op);
             }
             else
             {
                 // TODO: Handle ptxt in first position, too!
-                if (materialized_operands.size() == 2 && materialized_operands[1].getType().isa<bfv::PlaintextType>())
-                    rewriter.replaceOpWithNewOp<bfv::MultiplyPlainOp>(op, TypeRange(dstType), materialized_operands);
+                if (materialized_operands.size() == 2 && materialized_operands[1].getType().isa<bgv::PlaintextType>())
+                    rewriter.replaceOpWithNewOp<bgv::MultiplyPlainOp>(op, TypeRange(dstType), materialized_operands);
                 else
-                    rewriter.replaceOpWithNewOp<bfv::MultiplyOp>(op, TypeRange(dstType), materialized_operands);
+                    rewriter.replaceOpWithNewOp<bgv::MultiplyOp>(op, TypeRange(dstType), materialized_operands);
             }
             return success();
         }
@@ -300,7 +300,7 @@ public:
 
 /// This is basically just boiler-plate code,
 /// nothing here actually depends on the current dialect thats being converted.
-class BFVFunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
+class BGVFunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
 {
 public:
     using OpConversionPattern<func::FuncOp>::OpConversionPattern;
@@ -339,7 +339,7 @@ public:
 };
 
 /// More boiler-plate code that isn't dialect specific
-class BFVReturnPattern final : public OpConversionPattern<func::ReturnOp>
+class BGVReturnPattern final : public OpConversionPattern<func::ReturnOp>
 {
 public:
     using OpConversionPattern<func::ReturnOp>::OpConversionPattern;
@@ -366,7 +366,7 @@ public:
     }
 };
 
-void LowerFHEToBFVPass::runOnOperation()
+void LowerFHEToBGVPass::runOnOperation()
 {
     // TODO: We still need to emit a pre-amble with an include statement
     //  this should refer to some "magic file" that also sets up keys/etc and our custom evaluator wrapper for now
@@ -376,57 +376,57 @@ void LowerFHEToBFVPass::runOnOperation()
     type_converter.addConversion([&](Type t) {
         if (t.isa<fhe::BatchedSecretType>())
             // TODO: How to find the correct type here?
-            return std::optional<Type>(bfv::CiphertextType::get(
+            return std::optional<Type>(bgv::CiphertextType::get(
                 &getContext(), 1, poly::PolynomialType::get(&getContext(), 2, true, 17, "parms.txt")));
         else if (t.isa<fhe::SecretType>())
             // TODO: How to find the correct type here?
-            return std::optional<Type>(bfv::CiphertextType::get(
+            return std::optional<Type>(bgv::CiphertextType::get(
                 &getContext(), 1, poly::PolynomialType::get(&getContext(), 2, true, 17, "parms.txt")));
         else if (t.isIntOrIndexOrFloat())
             // TODO: How to find the correct type here?
-            return std::optional<Type>(bfv::PlaintextType::get(
+            return std::optional<Type>(bgv::PlaintextType::get(
                 &getContext(), poly::PolynomialType::get(&getContext(), 2, true, 17, "parms.txt")));
         else
             return std::optional<Type>(t);
     });
     type_converter.addTargetMaterialization([&](OpBuilder &builder, Type t, ValueRange vs, Location loc) {
-        if (auto ot = t.dyn_cast_or_null<bfv::CiphertextType>())
+        if (auto ot = t.dyn_cast_or_null<bgv::CiphertextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.dyn_cast_or_null<fhe::BatchedSecretType>() || old_type.dyn_cast_or_null<fhe::SecretType>())
             {
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
         }
-        else if (auto ot = t.dyn_cast_or_null<bfv::PlaintextType>())
+        else if (auto ot = t.dyn_cast_or_null<bgv::PlaintextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.isIntOrIndexOrFloat())
             {
-                return std::optional<Value>(builder.create<bfv::EncodeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<bgv::EncodeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
     type_converter.addArgumentMaterialization([&](OpBuilder &builder, Type t, ValueRange vs, Location loc) {
-        if (auto ot = t.dyn_cast_or_null<bfv::CiphertextType>())
+        if (auto ot = t.dyn_cast_or_null<bgv::CiphertextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.dyn_cast_or_null<fhe::BatchedSecretType>() || old_type.dyn_cast_or_null<fhe::SecretType>())
             {
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
         }
-        else if (auto ot = t.dyn_cast_or_null<bfv::PlaintextType>())
+        else if (auto ot = t.dyn_cast_or_null<bgv::PlaintextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.isIntOrIndexOrFloat())
             {
-                return std::optional<Value>(builder.create<bfv::EncodeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<bgv::EncodeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
@@ -436,29 +436,29 @@ void LowerFHEToBFVPass::runOnOperation()
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
-            if (auto ot = old_type.dyn_cast_or_null<bfv::CiphertextType>())
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+            if (auto ot = old_type.dyn_cast_or_null<bgv::CiphertextType>())
+                return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, bst, vs));
         }
         else if (auto st = t.dyn_cast_or_null<fhe::SecretType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
-            if (auto ot = old_type.dyn_cast_or_null<bfv::CiphertextType>())
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, st, vs));
+            if (auto ot = old_type.dyn_cast_or_null<bgv::CiphertextType>())
+                return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, st, vs));
         }
         else if (t.isIntOrIndexOrFloat())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
-            if (auto ot = old_type.dyn_cast_or_null<bfv::PlaintextType>())
-                return std::optional<Value>(builder.create<bfv::EncodeOp>(loc, t, vs));
+            if (auto ot = old_type.dyn_cast_or_null<bgv::PlaintextType>())
+                return std::optional<Value>(builder.create<bgv::EncodeOp>(loc, t, vs));
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
 
     ConversionTarget target(getContext());
     target.addIllegalDialect<fhe::FHEDialect>();
-    target.addLegalDialect<bfv::BFVDialect>();
+    target.addLegalDialect<bgv::BGVDialect>();
     target.addLegalOp<ModuleOp>();
     target.addLegalOp<fhe::ConstOp>();
     target.addLegalOp<fhe::CombineOp>();
@@ -491,9 +491,9 @@ void LowerFHEToBFVPass::runOnOperation()
     mlir::RewritePatternSet patterns(&getContext());
 
     patterns.add<
-        BFVFunctionConversionPattern, BFVReturnPattern, BFVBasicPattern<fhe::SubOp>, BFVBasicPattern<fhe::AddOp>,
-        BFVBasicPattern<fhe::SubOp>, BFVBasicPattern<fhe::MultiplyOp>, BFVRotatePattern, BFVConstPattern, BFVBasicPattern<fhe::SigmoidOp>,
-        BFVMaterializePattern, BFVInsertPattern, BFVExtractPattern>(type_converter, patterns.getContext());
+        BGVFunctionConversionPattern, BGVReturnPattern, BGVBasicPattern<fhe::SubOp>, BGVBasicPattern<fhe::AddOp>,
+        BGVBasicPattern<fhe::SubOp>, BGVBasicPattern<fhe::MultiplyOp>, BGVRotatePattern, BGVConstPattern, BGVBasicPattern<fhe::SigmoidOp>,
+        BGVMaterializePattern, BGVInsertPattern, BGVExtractPattern>(type_converter, patterns.getContext());
 
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns))))
         signalPassFailure();

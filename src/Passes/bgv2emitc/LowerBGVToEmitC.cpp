@@ -1,5 +1,5 @@
-#include "heco/Passes/bfv2emitc/LowerBFVToEmitC.h"
-#include "heco/IR/BFV/BFVDialect.h"
+#include "heco/Passes/bgv2emitc/LowerBGVToEmitC.h"
+#include "heco/IR/BGV/BGVDialect.h"
 #include "llvm/ADT/APSInt.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -12,20 +12,21 @@
 using namespace mlir;
 using namespace heco;
 
-void LowerBFVToEmitCPass::getDependentDialects(mlir::DialectRegistry &registry) const
+void LowerBGVToEmitCPass::getDependentDialects(mlir::DialectRegistry &registry) const
 {
     registry.insert<mlir::emitc::EmitCDialect>();
 }
 
 /// Convert Rotate
-class EmitCRotatePattern final : public OpConversionPattern<bfv::RotateOp>
+class BGVEmitCRotatePattern final : public OpConversionPattern<bgv::RotateOp>
 {
 public:
-    using OpConversionPattern<bfv::RotateOp>::OpConversionPattern;
+    using OpConversionPattern<bgv::RotateOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::RotateOp op, typename bfv::RotateOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        bgv::RotateOp op, typename bgv::RotateOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
+//        llvm::errs() << "BGV Rotate MatchAndRewrite Triggered!\n";
         rewriter.setInsertionPoint(op);
 
         auto dstType = typeConverter->convertType(op.getType());
@@ -66,13 +67,13 @@ public:
 };
 
 /// Convert Relin
-class EmitCRelinPattern final : public OpConversionPattern<bfv::RelinearizeOp>
+class BGVEmitCRelinPattern final : public OpConversionPattern<bgv::RelinearizeOp>
 {
 public:
-    using OpConversionPattern<bfv::RelinearizeOp>::OpConversionPattern;
+    using OpConversionPattern<bgv::RelinearizeOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::RelinearizeOp op, typename bfv::RelinearizeOp::Adaptor adaptor,
+        bgv::RelinearizeOp op, typename bgv::RelinearizeOp::Adaptor adaptor,
         ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
@@ -110,13 +111,13 @@ public:
 };
 
 /// Convert Encode
-class EmitCEncodePattern final : public OpConversionPattern<bfv::EncodeOp>
+class BGVEmitCEncodePattern final : public OpConversionPattern<bgv::EncodeOp>
 {
 public:
-    using OpConversionPattern<bfv::EncodeOp>::OpConversionPattern;
+    using OpConversionPattern<bgv::EncodeOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::EncodeOp op, typename bfv::EncodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        bgv::EncodeOp op, typename bgv::EncodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
 
@@ -151,13 +152,13 @@ public:
 };
 
 /// Convert Decode
-class EmitCDecodePattern final : public OpConversionPattern<bfv::DecodeOp>
+class BGVEmitCDecodePattern final : public OpConversionPattern<bgv::DecodeOp>
 {
 public:
-    using OpConversionPattern<bfv::DecodeOp>::OpConversionPattern;
+    using OpConversionPattern<bgv::DecodeOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::DecodeOp op, typename bfv::DecodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        bgv::DecodeOp op, typename bgv::DecodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
 
@@ -192,13 +193,13 @@ public:
 };
 
 /// Convert Sink
-class EmitCSinkPattern final : public OpConversionPattern<bfv::SinkOp>
+class BGVEmitCSinkPattern final : public OpConversionPattern<bgv::SinkOp>
 {
 public:
-    using OpConversionPattern<bfv::SinkOp>::OpConversionPattern;
+    using OpConversionPattern<bgv::SinkOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::SinkOp op, typename bfv::SinkOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        bgv::SinkOp op, typename bgv::SinkOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
 
@@ -228,7 +229,7 @@ public:
 
 /// Basic Pattern for operations without attributes.
 template <typename OpType>
-class EmitCBasicPattern final : public OpConversionPattern<OpType>
+class BGVEmitCBasicPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -247,7 +248,6 @@ public:
 
         // Materialize the operands where necessary
         llvm::SmallVector<Value> materialized_operands;
-        // 不太理解为啥加了sigmoid后要改成这样
         for (Value o : op->getOperands())
         {
             auto operandDstType = typeConverter->convertType(o.getType());
@@ -267,31 +267,31 @@ public:
         // build a series of calls to our custom evaluator wrapper (for now, because it's faster than dealing with
         // seal's API)
         std::string op_str = "";
-        if (std::is_same<OpType, bfv::SubOp>())
+        if (std::is_same<OpType, bgv::SubOp>())
             op_str = "sub";
-        else if (std::is_same<OpType, bfv::SubPlainOp>())
+        else if (std::is_same<OpType, bgv::SubPlainOp>())
             op_str = "sub_plain";
-        else if (std::is_same<OpType, bfv::AddOp>())
+        else if (std::is_same<OpType, bgv::AddOp>())
             op_str = "add";
-        else if (std::is_same<OpType, bfv::AddPlainOp>())
+        else if (std::is_same<OpType, bgv::AddPlainOp>())
             op_str = "add_plain";
-        else if (std::is_same<OpType, bfv::AddManyOp>())
+        else if (std::is_same<OpType, bgv::AddManyOp>())
             op_str = "add_many";
-        else if (std::is_same<OpType, bfv::MultiplyOp>())
+        else if (std::is_same<OpType, bgv::MultiplyOp>())
             op_str = "multiply";
-        else if (std::is_same<OpType, bfv::MultiplyPlainOp>())
+        else if (std::is_same<OpType, bgv::MultiplyPlainOp>())
             op_str = "multiply_plain";
-        else if (std::is_same<OpType, bfv::MultiplyManyOp>())
+        else if (std::is_same<OpType, bgv::MultiplyManyOp>())
             op_str = "multiply_plain";
-        else if (std::is_same<OpType, bfv::ModswitchToOp>())
+        else if (std::is_same<OpType, bgv::ModswitchToOp>())
             op_str = "modswitch_to";
-        else if (std::is_same<OpType, bfv::SigmoidOp>())
+        else if (std::is_same<OpType, bgv::SigmoidOp>())
             op_str = "sigmoid";
         else
             return failure();
 
         // For the _many ops, we need to build a vector of the arguments!
-        if (std::is_same<OpType, bfv::AddManyOp>() || std::is_same<OpType, bfv::MultiplyManyOp>())
+        if (std::is_same<OpType, bgv::AddManyOp>() || std::is_same<OpType, bgv::MultiplyManyOp>())
         {
             auto template_array = ArrayAttr::get(
                 rewriter.getContext(), { emitc::OpaqueAttr::get(rewriter.getContext(), "seal::Ciphertext") });
@@ -300,7 +300,7 @@ public:
                 llvm::StringRef("std::vector"), ArrayAttr(), template_array, ValueRange());
 
             size_t num_operands =
-                std::is_same<OpType, bfv::AddManyOp>() ? op->getNumOperands() : op->getNumOperands() - 1;
+                std::is_same<OpType, bgv::AddManyOp>() ? op->getNumOperands() : op->getNumOperands() - 1;
             for (size_t i = 0; i < num_operands; ++i)
             {
                 rewriter.create<emitc::CallOp>(
@@ -308,7 +308,7 @@ public:
                     ValueRange({ v.getResult(0), materialized_operands[i] }));
             }
 
-            if (std::is_same<OpType, bfv::AddManyOp>())
+            if (std::is_same<OpType, bgv::AddManyOp>())
             {
                 rewriter.replaceOpWithNewOp<emitc::CallOp>(
                     op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
@@ -334,7 +334,7 @@ public:
 
 /// Pattern for operations with file and parms attributes.
 template <typename OpType>
-class EmitCLoadPattern final : public OpConversionPattern<OpType>
+class BGVEmitCLoadPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -362,13 +362,13 @@ public:
         // build a series of calls to our custom evaluator wrapper (for now, because it's faster than dealing with
         // seal's API)
         std::string op_str = "";
-        if (std::is_same<OpType, bfv::LoadCtxtOp>())
+        if (std::is_same<OpType, bgv::LoadCtxtOp>())
             op_str = "load_ctxt";
-        else if (std::is_same<OpType, bfv::LoadPublicKeyOp>())
+        else if (std::is_same<OpType, bgv::LoadPublicKeyOp>())
             op_str = "load_public_key";
-        else if (std::is_same<OpType, bfv::LoadRelinKeysOp>())
+        else if (std::is_same<OpType, bgv::LoadRelinKeysOp>())
             op_str = "load_relin_keys";
-        else if (std::is_same<OpType, bfv::LoadGaloisKeysOp>())
+        else if (std::is_same<OpType, bgv::LoadGaloisKeysOp>())
             op_str = "load_galois_keys";
         else
             return failure();
@@ -382,7 +382,7 @@ public:
 
 /// This is basically just boiler-plate code,
 /// nothing here actually depends on the current dialect thats being converted.
-class FunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
+class BGVFunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
 {
 public:
     using OpConversionPattern<func::FuncOp>::OpConversionPattern;
@@ -421,7 +421,7 @@ public:
 };
 
 /// More boiler-plate code that isn't dialect specific
-class EmitCReturnPattern final : public OpConversionPattern<func::ReturnOp>
+class BGVEmitCReturnPattern final : public OpConversionPattern<func::ReturnOp>
 {
 public:
     using OpConversionPattern<func::ReturnOp>::OpConversionPattern;
@@ -450,7 +450,7 @@ public:
     }
 };
 
-void LowerBFVToEmitCPass::runOnOperation()
+void LowerBGVToEmitCPass::runOnOperation()
 {
     // TODO: We still need to emit a pre-amble with an include statement
     //  this should refer to some "magic file" that also sets up keys/etc and our custom evaluator wrapper for now
@@ -458,15 +458,15 @@ void LowerBFVToEmitCPass::runOnOperation()
     auto type_converter = TypeConverter();
 
     type_converter.addConversion([&](Type t) {
-        if (t.isa<bfv::CiphertextType>())
+        if (t.isa<bgv::CiphertextType>())
             return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Ciphertext"));
-        else if (t.isa<bfv::PlaintextType>())
+        else if (t.isa<bgv::PlaintextType>())
             return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Plaintext"));
-        else if (t.isa<bfv::PublicKeyType>())
+        else if (t.isa<bgv::PublicKeyType>())
             return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::PublicKey"));
-        else if (t.isa<bfv::RelinKeysType>())
+        else if (t.isa<bgv::RelinKeysType>())
             return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::RelinKeys"));
-        else if (t.isa<bfv::GaloisKeysType>())
+        else if (t.isa<bgv::GaloisKeysType>())
             return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::GaloisKeys"));
         else
             return std::optional<Type>(t);
@@ -476,30 +476,30 @@ void LowerBFVToEmitCPass::runOnOperation()
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
-            if (old_type.dyn_cast_or_null<bfv::CiphertextType>())
+            if (old_type.dyn_cast_or_null<bgv::CiphertextType>())
             {
                 if (ot.getValue().str() == "seal::Ciphertext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PlaintextType>())
+            else if (old_type.dyn_cast_or_null<bgv::PlaintextType>())
             {
                 if (ot.getValue().str() == "seal::Plaintext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PublicKeyType>())
+            else if (old_type.dyn_cast_or_null<bgv::PublicKeyType>())
             {
                 if (ot.getValue().str() == "seal::PublicKey")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::RelinKeysType>())
+            else if (old_type.dyn_cast_or_null<bgv::RelinKeysType>())
             {
                 if (ot.getValue().str() == "seal::RelinKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::GaloisKeysType>())
+            else if (old_type.dyn_cast_or_null<bgv::GaloisKeysType>())
             {
                 if (ot.getValue().str() == "seal::GaloisKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
@@ -509,81 +509,82 @@ void LowerBFVToEmitCPass::runOnOperation()
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
-            if (old_type.dyn_cast_or_null<bfv::CiphertextType>())
+            if (old_type.dyn_cast_or_null<bgv::CiphertextType>())
             {
                 if (ot.getValue().str() == "seal::Ciphertext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PlaintextType>())
+            else if (old_type.dyn_cast_or_null<bgv::PlaintextType>())
             {
                 if (ot.getValue().str() == "seal::Plaintext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PublicKeyType>())
+            else if (old_type.dyn_cast_or_null<bgv::PublicKeyType>())
             {
                 if (ot.getValue().str() == "seal::PublicKey")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::RelinKeysType>())
+            else if (old_type.dyn_cast_or_null<bgv::RelinKeysType>())
             {
                 if (ot.getValue().str() == "seal::RelinKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::GaloisKeysType>())
+            else if (old_type.dyn_cast_or_null<bgv::GaloisKeysType>())
             {
                 if (ot.getValue().str() == "seal::GaloisKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
     type_converter.addSourceMaterialization([&](OpBuilder &builder, Type t, ValueRange vs, Location loc) {
-        if (auto bst = t.dyn_cast_or_null<bfv::CiphertextType>())
+        if (auto bst = t.dyn_cast_or_null<bgv::CiphertextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
                 if (ot.getValue().str() == "seal::Ciphertext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::PlaintextType>())
+        else if (auto bst = t.dyn_cast_or_null<bgv::PlaintextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
                 if (ot.getValue().str() == "seal::Plaintext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::PublicKeyType>())
+        else if (auto bst = t.dyn_cast_or_null<bgv::PublicKeyType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
                 if (ot.getValue().str() == "seal::PublicKey")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::RelinKeysType>())
+        else if (auto bst = t.dyn_cast_or_null<bgv::RelinKeysType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
                 if (ot.getValue().str() == "seal::RelinKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::GaloisKeysType>())
+        else if (auto bst = t.dyn_cast_or_null<bgv::GaloisKeysType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
                 if (ot.getValue().str() == "seal::GaloisKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                    return std::optional<Value>(builder.create<bgv::MaterializeOp>(loc, bst, vs));
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
 
     ConversionTarget target(getContext());
-    target.addIllegalDialect<bfv::BFVDialect>();
-    target.addLegalOp<bfv::MaterializeOp>();
+    target.addIllegalDialect<bgv::BGVDialect>();
+    target.addLegalOp<bgv::MaterializeOp>();
+//    target.addIllegalOp<bgv::RotateOp>();
     target.addLegalDialect<emitc::EmitCDialect>();
     target.addLegalOp<ModuleOp>();
     target.addDynamicallyLegalOp<func::FuncOp>([&](Operation *op) {
@@ -617,13 +618,13 @@ void LowerBFVToEmitCPass::runOnOperation()
     // TODO: Emit the emitc.include operation!
 
     patterns.add<
-        EmitCBasicPattern<bfv::SubOp>, EmitCBasicPattern<bfv::SubPlainOp>, EmitCBasicPattern<bfv::AddOp>,
-        EmitCBasicPattern<bfv::AddPlainOp>, EmitCBasicPattern<bfv::AddManyOp>, EmitCBasicPattern<bfv::MultiplyOp>,
-        EmitCBasicPattern<bfv::MultiplyPlainOp>, EmitCBasicPattern<bfv::MultiplyManyOp>, EmitCBasicPattern<bfv::SigmoidOp>,
-        EmitCBasicPattern<bfv::ModswitchToOp>, EmitCLoadPattern<bfv::LoadCtxtOp>, EmitCLoadPattern<bfv::LoadPtxtOp>,
-        EmitCLoadPattern<bfv::LoadPublicKeyOp>, EmitCLoadPattern<bfv::LoadRelinKeysOp>,
-        EmitCLoadPattern<bfv::LoadGaloisKeysOp>, EmitCRelinPattern, EmitCRotatePattern, EmitCEncodePattern,
-        EmitCDecodePattern, EmitCSinkPattern, FunctionConversionPattern, EmitCReturnPattern>(
+        BGVEmitCBasicPattern<bgv::SubOp>, BGVEmitCBasicPattern<bgv::SubPlainOp>, BGVEmitCBasicPattern<bgv::AddOp>,
+        BGVEmitCBasicPattern<bgv::AddPlainOp>, BGVEmitCBasicPattern<bgv::AddManyOp>, BGVEmitCBasicPattern<bgv::MultiplyOp>,
+        BGVEmitCBasicPattern<bgv::MultiplyPlainOp>, BGVEmitCBasicPattern<bgv::MultiplyManyOp>,BGVEmitCBasicPattern<bgv::SigmoidOp>,
+        BGVEmitCBasicPattern<bgv::ModswitchToOp>, BGVEmitCLoadPattern<bgv::LoadCtxtOp>, BGVEmitCLoadPattern<bgv::LoadPtxtOp>,
+        BGVEmitCLoadPattern<bgv::LoadPublicKeyOp>, BGVEmitCLoadPattern<bgv::LoadRelinKeysOp>,
+        BGVEmitCLoadPattern<bgv::LoadGaloisKeysOp>, BGVEmitCRelinPattern, BGVEmitCRotatePattern, BGVEmitCEncodePattern,
+        BGVEmitCDecodePattern, BGVEmitCSinkPattern, BGVFunctionConversionPattern, BGVEmitCReturnPattern>(
         type_converter, patterns.getContext());
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns))))
         signalPassFailure();

@@ -7,6 +7,7 @@ add_heco_conversion_library(HECOCatchAll
         ScalarBatching.cpp
         Tensor2BatchedSecret.cpp
         UnrollLoops.cpp
+        Params.cpp
 
         #ADDITIONAL_HEADER_DIRS
         #Passes

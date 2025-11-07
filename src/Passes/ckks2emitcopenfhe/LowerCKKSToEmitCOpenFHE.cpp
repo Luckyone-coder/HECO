@@ -1,5 +1,5 @@
-#include "heco/Passes/bfv2emitc/LowerBFVToEmitC.h"
-#include "heco/IR/BFV/BFVDialect.h"
+#include "heco/Passes/ckks2emitcopenfhe/LowerCKKSToEmitCOpenFHE.h"
+#include "heco/IR/CKKS/CKKSDialect.h"
 #include "llvm/ADT/APSInt.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -12,20 +12,21 @@
 using namespace mlir;
 using namespace heco;
 
-void LowerBFVToEmitCPass::getDependentDialects(mlir::DialectRegistry &registry) const
+void LowerCKKSToEmitCOpenFHEPass::getDependentDialects(mlir::DialectRegistry &registry) const
 {
     registry.insert<mlir::emitc::EmitCDialect>();
 }
 
 /// Convert Rotate
-class EmitCRotatePattern final : public OpConversionPattern<bfv::RotateOp>
+class CKKSOpenFHERotatePattern final : public OpConversionPattern<ckks::RotateOp>
 {
 public:
-    using OpConversionPattern<bfv::RotateOp>::OpConversionPattern;
+    using OpConversionPattern<ckks::RotateOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::RotateOp op, typename bfv::RotateOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        ckks::RotateOp op, typename ckks::RotateOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
+//        llvm::errs() << "CKKS Rotate MatchAndRewrite Triggered!\n";
         rewriter.setInsertionPoint(op);
 
         auto dstType = typeConverter->convertType(op.getType());
@@ -58,21 +59,22 @@ public:
                                 0), // means "first operand"
                             rewriter.getSI32IntegerAttr(op.getOffset()) });
 
+//        rewriter.replaceOpWithNewOp<emitc::CallOp>(
+//            op, TypeRange(dstType), llvm::StringRef("evaluator_rotate"), aa, ArrayAttr(), materialized_operands);
         rewriter.replaceOpWithNewOp<emitc::CallOp>(
-            op, TypeRange(dstType), llvm::StringRef("evaluator_rotate"), aa, ArrayAttr(), materialized_operands);
-
+            op, TypeRange(dstType), llvm::StringRef("cc->EvalRotate"), aa, ArrayAttr(), materialized_operands);
         return success();
     }
 };
 
 /// Convert Relin
-class EmitCRelinPattern final : public OpConversionPattern<bfv::RelinearizeOp>
+class CKKSOpenFHERelinPattern final : public OpConversionPattern<ckks::RelinearizeOp>
 {
 public:
-    using OpConversionPattern<bfv::RelinearizeOp>::OpConversionPattern;
+    using OpConversionPattern<ckks::RelinearizeOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::RelinearizeOp op, typename bfv::RelinearizeOp::Adaptor adaptor,
+        ckks::RelinearizeOp op, typename ckks::RelinearizeOp::Adaptor adaptor,
         ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
@@ -110,13 +112,13 @@ public:
 };
 
 /// Convert Encode
-class EmitCEncodePattern final : public OpConversionPattern<bfv::EncodeOp>
+class CKKSOpenFHEEncodePattern final : public OpConversionPattern<ckks::EncodeOp>
 {
 public:
-    using OpConversionPattern<bfv::EncodeOp>::OpConversionPattern;
+    using OpConversionPattern<ckks::EncodeOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::EncodeOp op, typename bfv::EncodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        ckks::EncodeOp op, typename ckks::EncodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
 
@@ -151,13 +153,13 @@ public:
 };
 
 /// Convert Decode
-class EmitCDecodePattern final : public OpConversionPattern<bfv::DecodeOp>
+class CKKSOpenFHEDecodePattern final : public OpConversionPattern<ckks::DecodeOp>
 {
 public:
-    using OpConversionPattern<bfv::DecodeOp>::OpConversionPattern;
+    using OpConversionPattern<ckks::DecodeOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::DecodeOp op, typename bfv::DecodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        ckks::DecodeOp op, typename ckks::DecodeOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
 
@@ -192,13 +194,13 @@ public:
 };
 
 /// Convert Sink
-class EmitCSinkPattern final : public OpConversionPattern<bfv::SinkOp>
+class CKKSOpenFHESinkPattern final : public OpConversionPattern<ckks::SinkOp>
 {
 public:
-    using OpConversionPattern<bfv::SinkOp>::OpConversionPattern;
+    using OpConversionPattern<ckks::SinkOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        bfv::SinkOp op, typename bfv::SinkOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        ckks::SinkOp op, typename ckks::SinkOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
 
@@ -228,7 +230,7 @@ public:
 
 /// Basic Pattern for operations without attributes.
 template <typename OpType>
-class EmitCBasicPattern final : public OpConversionPattern<OpType>
+class CKKSOpenFHEBasicPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -247,7 +249,6 @@ public:
 
         // Materialize the operands where necessary
         llvm::SmallVector<Value> materialized_operands;
-        // 不太理解为啥加了sigmoid后要改成这样
         for (Value o : op->getOperands())
         {
             auto operandDstType = typeConverter->convertType(o.getType());
@@ -266,41 +267,65 @@ public:
 
         // build a series of calls to our custom evaluator wrapper (for now, because it's faster than dealing with
         // seal's API)
+//        std::string op_str = "";
+//        if (std::is_same<OpType, ckks::SubOp>())
+//            op_str = "sub";
+//        else if (std::is_same<OpType, ckks::SubPlainOp>())
+//            op_str = "sub_plain";
+//        else if (std::is_same<OpType, ckks::AddOp>())
+//            op_str = "add";
+//        else if (std::is_same<OpType, ckks::AddPlainOp>())
+//            op_str = "add_plain";
+//        else if (std::is_same<OpType, ckks::AddManyOp>())
+//            op_str = "add_many";
+//        else if (std::is_same<OpType, ckks::MultiplyOp>())
+//            op_str = "multiply";
+//        else if (std::is_same<OpType, ckks::MultiplyPlainOp>())
+//            op_str = "multiply_plain";
+//        else if (std::is_same<OpType, ckks::MultiplyManyOp>())
+//            op_str = "multiply_plain";
+//        else if (std::is_same<OpType, ckks::ModswitchToOp>())
+//            op_str = "modswitch_to";
+//        else if (std::is_same<OpType, ckks::SigmoidOp>())
+//            op_str = "sigmoid";
+//        else
+//            return failure();
+
         std::string op_str = "";
-        if (std::is_same<OpType, bfv::SubOp>())
-            op_str = "sub";
-        else if (std::is_same<OpType, bfv::SubPlainOp>())
-            op_str = "sub_plain";
-        else if (std::is_same<OpType, bfv::AddOp>())
-            op_str = "add";
-        else if (std::is_same<OpType, bfv::AddPlainOp>())
-            op_str = "add_plain";
-        else if (std::is_same<OpType, bfv::AddManyOp>())
+        if (std::is_same<OpType, ckks::SubOp>())
+            op_str = "cc->EvalSub";
+        else if (std::is_same<OpType, ckks::SubPlainOp>())
+            op_str = "cc->EvalSub";
+        else if (std::is_same<OpType, ckks::AddOp>())
+            op_str = "cc->EvalAdd";
+        else if (std::is_same<OpType, ckks::AddPlainOp>())
+            op_str = "cc->EvalAdd";
+        else if (std::is_same<OpType, ckks::AddManyOp>())
             op_str = "add_many";
-        else if (std::is_same<OpType, bfv::MultiplyOp>())
-            op_str = "multiply";
-        else if (std::is_same<OpType, bfv::MultiplyPlainOp>())
-            op_str = "multiply_plain";
-        else if (std::is_same<OpType, bfv::MultiplyManyOp>())
-            op_str = "multiply_plain";
-        else if (std::is_same<OpType, bfv::ModswitchToOp>())
+        else if (std::is_same<OpType, ckks::MultiplyOp>())
+            op_str = "cc->EvalMult";
+        else if (std::is_same<OpType, ckks::MultiplyPlainOp>())
+            op_str = "cc->EvalMult";
+        else if (std::is_same<OpType, ckks::MultiplyManyOp>())
+            op_str = "cc->EvalMult";
+        else if (std::is_same<OpType, ckks::ModswitchToOp>())
             op_str = "modswitch_to";
-        else if (std::is_same<OpType, bfv::SigmoidOp>())
+        else if (std::is_same<OpType, ckks::SigmoidOp>())
             op_str = "sigmoid";
         else
             return failure();
 
         // For the _many ops, we need to build a vector of the arguments!
-        if (std::is_same<OpType, bfv::AddManyOp>() || std::is_same<OpType, bfv::MultiplyManyOp>())
+        if (std::is_same<OpType, ckks::AddManyOp>() || std::is_same<OpType, ckks::MultiplyManyOp>())
         {
             auto template_array = ArrayAttr::get(
-                rewriter.getContext(), { emitc::OpaqueAttr::get(rewriter.getContext(), "seal::Ciphertext") });
+                rewriter.getContext(), { emitc::OpaqueAttr::get(rewriter.getContext(), "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>") });
             emitc::CallOp v = rewriter.create<emitc::CallOp>(
                 op.getLoc(), TypeRange(emitc::OpaqueType::get(rewriter.getContext(), "std::vector<seal::Ciphertext>")),
-                llvm::StringRef("std::vector"), ArrayAttr(), template_array, ValueRange());
+                llvm::StringRef("std::vector"), ArrayAttr(), template_array, ValueRange()); // 这里openfhe和seal 逻辑不通，暂时不动0-0
 
             size_t num_operands =
-                std::is_same<OpType, bfv::AddManyOp>() ? op->getNumOperands() : op->getNumOperands() - 1;
+                std::is_same<OpType, ckks::AddManyOp>() ? op->getNumOperands() : op->getNumOperands() - 1;
             for (size_t i = 0; i < num_operands; ++i)
             {
                 rewriter.create<emitc::CallOp>(
@@ -308,10 +333,13 @@ public:
                     ValueRange({ v.getResult(0), materialized_operands[i] }));
             }
 
-            if (std::is_same<OpType, bfv::AddManyOp>())
+            if (std::is_same<OpType, ckks::AddManyOp>())
             {
+//                rewriter.replaceOpWithNewOp<emitc::CallOp>(
+//                    op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
+//                    ValueRange{ (v.getResult(0)) });
                 rewriter.replaceOpWithNewOp<emitc::CallOp>(
-                    op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
+                    op, TypeRange(dstType), llvm::StringRef(op_str), ArrayAttr(), ArrayAttr(),
                     ValueRange{ (v.getResult(0)) });
             }
             else
@@ -323,8 +351,12 @@ public:
         }
         else
         {
+//            rewriter.replaceOpWithNewOp<emitc::CallOp>(
+//                op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
+//                materialized_operands);
+
             rewriter.replaceOpWithNewOp<emitc::CallOp>(
-                op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
+                op, TypeRange(dstType), llvm::StringRef( op_str), ArrayAttr(), ArrayAttr(),
                 materialized_operands);
         }
 
@@ -334,7 +366,7 @@ public:
 
 /// Pattern for operations with file and parms attributes.
 template <typename OpType>
-class EmitCLoadPattern final : public OpConversionPattern<OpType>
+class CKKSOpenFHELoadPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -362,13 +394,13 @@ public:
         // build a series of calls to our custom evaluator wrapper (for now, because it's faster than dealing with
         // seal's API)
         std::string op_str = "";
-        if (std::is_same<OpType, bfv::LoadCtxtOp>())
+        if (std::is_same<OpType, ckks::LoadCtxtOp>())
             op_str = "load_ctxt";
-        else if (std::is_same<OpType, bfv::LoadPublicKeyOp>())
+        else if (std::is_same<OpType, ckks::LoadPublicKeyOp>())
             op_str = "load_public_key";
-        else if (std::is_same<OpType, bfv::LoadRelinKeysOp>())
+        else if (std::is_same<OpType, ckks::LoadRelinKeysOp>())
             op_str = "load_relin_keys";
-        else if (std::is_same<OpType, bfv::LoadGaloisKeysOp>())
+        else if (std::is_same<OpType, ckks::LoadGaloisKeysOp>())
             op_str = "load_galois_keys";
         else
             return failure();
@@ -382,7 +414,7 @@ public:
 
 /// This is basically just boiler-plate code,
 /// nothing here actually depends on the current dialect thats being converted.
-class FunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
+class CKKSOpenFHEFunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
 {
 public:
     using OpConversionPattern<func::FuncOp>::OpConversionPattern;
@@ -421,7 +453,7 @@ public:
 };
 
 /// More boiler-plate code that isn't dialect specific
-class EmitCReturnPattern final : public OpConversionPattern<func::ReturnOp>
+class CKKSOpenFHEReturnPattern final : public OpConversionPattern<func::ReturnOp>
 {
 public:
     using OpConversionPattern<func::ReturnOp>::OpConversionPattern;
@@ -450,7 +482,7 @@ public:
     }
 };
 
-void LowerBFVToEmitCPass::runOnOperation()
+void LowerCKKSToEmitCOpenFHEPass::runOnOperation()
 {
     // TODO: We still need to emit a pre-amble with an include statement
     //  this should refer to some "magic file" that also sets up keys/etc and our custom evaluator wrapper for now
@@ -458,16 +490,18 @@ void LowerBFVToEmitCPass::runOnOperation()
     auto type_converter = TypeConverter();
 
     type_converter.addConversion([&](Type t) {
-        if (t.isa<bfv::CiphertextType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Ciphertext"));
-        else if (t.isa<bfv::PlaintextType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Plaintext"));
-        else if (t.isa<bfv::PublicKeyType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::PublicKey"));
-        else if (t.isa<bfv::RelinKeysType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::RelinKeys"));
-        else if (t.isa<bfv::GaloisKeysType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::GaloisKeys"));
+        if (t.isa<ckks::CiphertextType>())
+//            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Ciphertext"));
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>"));
+        else if (t.isa<ckks::PlaintextType>())
+//            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Plaintext"));
+        return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::Plaintext"));
+        else if (t.isa<ckks::PublicKeyType>())
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::PublicKey"));
+        else if (t.isa<ckks::RelinKeysType>())
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::RelinKeys"));
+        else if (t.isa<ckks::GaloisKeysType>())
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::GaloisKeys"));
         else
             return std::optional<Type>(t);
     });
@@ -476,30 +510,32 @@ void LowerBFVToEmitCPass::runOnOperation()
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
-            if (old_type.dyn_cast_or_null<bfv::CiphertextType>())
+            if (old_type.dyn_cast_or_null<ckks::CiphertextType>())
             {
-                if (ot.getValue().str() == "seal::Ciphertext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+//                if (ot.getValue().str() == "seal::Ciphertext")
+                  if (ot.getValue().str() == "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PlaintextType>())
+            else if (old_type.dyn_cast_or_null<ckks::PlaintextType>())
             {
-                if (ot.getValue().str() == "seal::Plaintext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+//                if (ot.getValue().str() == "seal::Plaintext")
+                if (ot.getValue().str() == "lbcrypto::Plaintext")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PublicKeyType>())
+            else if (old_type.dyn_cast_or_null<ckks::PublicKeyType>())
             {
-                if (ot.getValue().str() == "seal::PublicKey")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                if (ot.getValue().str() == "lbcrypto::PublicKey")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::RelinKeysType>())
+            else if (old_type.dyn_cast_or_null<ckks::RelinKeysType>())
             {
-                if (ot.getValue().str() == "seal::RelinKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                if (ot.getValue().str() == "lbcrypto::RelinKeys")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::GaloisKeysType>())
+            else if (old_type.dyn_cast_or_null<ckks::GaloisKeysType>())
             {
-                if (ot.getValue().str() == "seal::GaloisKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                if (ot.getValue().str() == "lbcrypto::GaloisKeys")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
@@ -509,81 +545,86 @@ void LowerBFVToEmitCPass::runOnOperation()
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
-            if (old_type.dyn_cast_or_null<bfv::CiphertextType>())
+            if (old_type.dyn_cast_or_null<ckks::CiphertextType>())
             {
-                if (ot.getValue().str() == "seal::Ciphertext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+//                if (ot.getValue().str() == "seal::Ciphertext")
+                if (ot.getValue().str() == "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PlaintextType>())
+            else if (old_type.dyn_cast_or_null<ckks::PlaintextType>())
             {
-                if (ot.getValue().str() == "seal::Plaintext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+//                if (ot.getValue().str() == "seal::Plaintext")
+                if (ot.getValue().str() == "lbcrypto::Plaintext")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::PublicKeyType>())
+            else if (old_type.dyn_cast_or_null<ckks::PublicKeyType>())
             {
-                if (ot.getValue().str() == "seal::PublicKey")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                if (ot.getValue().str() == "lbcrypto::PublicKey")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::RelinKeysType>())
+            else if (old_type.dyn_cast_or_null<ckks::RelinKeysType>())
             {
-                if (ot.getValue().str() == "seal::RelinKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                if (ot.getValue().str() == "lbcrypto::RelinKeys")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
-            else if (old_type.dyn_cast_or_null<bfv::GaloisKeysType>())
+            else if (old_type.dyn_cast_or_null<ckks::GaloisKeysType>())
             {
-                if (ot.getValue().str() == "seal::GaloisKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                if (ot.getValue().str() == "lbcrypto::GaloisKeys")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
     type_converter.addSourceMaterialization([&](OpBuilder &builder, Type t, ValueRange vs, Location loc) {
-        if (auto bst = t.dyn_cast_or_null<bfv::CiphertextType>())
+        if (auto bst = t.dyn_cast_or_null<ckks::CiphertextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::Ciphertext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+//                if (ot.getValue().str() == "seal::Ciphertext")
+                if (ot.getValue().str() == "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::PlaintextType>())
+        else if (auto bst = t.dyn_cast_or_null<ckks::PlaintextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::Plaintext")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+//                if (ot.getValue().str() == "seal::Plaintext")
+                if (ot.getValue().str() == "lbcrypto::Plaintext")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::PublicKeyType>())
+        else if (auto bst = t.dyn_cast_or_null<ckks::PublicKeyType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::PublicKey")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                if (ot.getValue().str() == "lbcrypto::PublicKey")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::RelinKeysType>())
+        else if (auto bst = t.dyn_cast_or_null<ckks::RelinKeysType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::RelinKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                if (ot.getValue().str() == "lbcrypto::RelinKeys")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, bst, vs));
         }
-        else if (auto bst = t.dyn_cast_or_null<bfv::GaloisKeysType>())
+        else if (auto bst = t.dyn_cast_or_null<ckks::GaloisKeysType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::GaloisKeys")
-                    return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+                if (ot.getValue().str() == "lbcrypto::GaloisKeys")
+                    return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, bst, vs));
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
 
     ConversionTarget target(getContext());
-    target.addIllegalDialect<bfv::BFVDialect>();
-    target.addLegalOp<bfv::MaterializeOp>();
+    target.addIllegalDialect<ckks::CKKSDialect>();
+    target.addLegalOp<ckks::MaterializeOp>();
+//    target.addIllegalOp<ckks::RotateOp>();
     target.addLegalDialect<emitc::EmitCDialect>();
     target.addLegalOp<ModuleOp>();
     target.addDynamicallyLegalOp<func::FuncOp>([&](Operation *op) {
@@ -617,13 +658,13 @@ void LowerBFVToEmitCPass::runOnOperation()
     // TODO: Emit the emitc.include operation!
 
     patterns.add<
-        EmitCBasicPattern<bfv::SubOp>, EmitCBasicPattern<bfv::SubPlainOp>, EmitCBasicPattern<bfv::AddOp>,
-        EmitCBasicPattern<bfv::AddPlainOp>, EmitCBasicPattern<bfv::AddManyOp>, EmitCBasicPattern<bfv::MultiplyOp>,
-        EmitCBasicPattern<bfv::MultiplyPlainOp>, EmitCBasicPattern<bfv::MultiplyManyOp>, EmitCBasicPattern<bfv::SigmoidOp>,
-        EmitCBasicPattern<bfv::ModswitchToOp>, EmitCLoadPattern<bfv::LoadCtxtOp>, EmitCLoadPattern<bfv::LoadPtxtOp>,
-        EmitCLoadPattern<bfv::LoadPublicKeyOp>, EmitCLoadPattern<bfv::LoadRelinKeysOp>,
-        EmitCLoadPattern<bfv::LoadGaloisKeysOp>, EmitCRelinPattern, EmitCRotatePattern, EmitCEncodePattern,
-        EmitCDecodePattern, EmitCSinkPattern, FunctionConversionPattern, EmitCReturnPattern>(
+        CKKSOpenFHEBasicPattern<ckks::SubOp>, CKKSOpenFHEBasicPattern<ckks::SubPlainOp>, CKKSOpenFHEBasicPattern<ckks::AddOp>,
+        CKKSOpenFHEBasicPattern<ckks::AddPlainOp>, CKKSOpenFHEBasicPattern<ckks::AddManyOp>, CKKSOpenFHEBasicPattern<ckks::MultiplyOp>,
+        CKKSOpenFHEBasicPattern<ckks::MultiplyPlainOp>, CKKSOpenFHEBasicPattern<ckks::MultiplyManyOp>,CKKSOpenFHEBasicPattern<ckks::SigmoidOp>,
+        CKKSOpenFHEBasicPattern<ckks::ModswitchToOp>, CKKSOpenFHELoadPattern<ckks::LoadCtxtOp>, CKKSOpenFHELoadPattern<ckks::LoadPtxtOp>,
+        CKKSOpenFHELoadPattern<ckks::LoadPublicKeyOp>, CKKSOpenFHELoadPattern<ckks::LoadRelinKeysOp>,
+        CKKSOpenFHELoadPattern<ckks::LoadGaloisKeysOp>, CKKSOpenFHERelinPattern, CKKSOpenFHERotatePattern, CKKSOpenFHEEncodePattern,
+        CKKSOpenFHEDecodePattern, CKKSOpenFHESinkPattern, CKKSOpenFHEFunctionConversionPattern, CKKSOpenFHEReturnPattern>(
         type_converter, patterns.getContext());
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns))))
         signalPassFailure();

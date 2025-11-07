@@ -298,4 +298,19 @@ def FHE_MaterializeOp: FHE_Op<"materialize", []> {
   let hasCanonicalizeMethod = 1;
 
 }
+
+def FHE_SigmoidOp: FHE_Op<"sigmoid", [AllTypesMatch<["x","output"]>]> {
+
+  let summary = "Sigmoid";
+
+  let arguments = (ins
+    AnyTypeOf<[Secret,BatchedSecret]>:$x
+  );
+
+  let results = (outs
+    AnyTypeOf<[Secret,BatchedSecret]>:$output
+  );
+
+}
+
 #endif // ABC_FHE_FHE_TD_

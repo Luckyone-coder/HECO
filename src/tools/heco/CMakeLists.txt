@@ -9,6 +9,8 @@ set(LIBS
         HECOFHEDialect
         HECOEVADialect
         HECOBFVDialect
+        HECOCKKSDialect
+        HECOBGVDialect
         HECOPolyDialect
         MLIRAnalysis
         MLIRCallInterfaces
@@ -26,8 +28,15 @@ set(LIBS
         MLIRTargetLLVMIRExport
         MLIRTransforms  
         HECOLowerBFVToEmitC
+        HECOLowerCKKSToEmitC
+        HECOLowerBGVToEmitC
         HECOLowerBFVToLLVM
         HECOLowerFHEToBFV
+        HECOLowerFHEToCKKS
+        HECOLowerFHEToBGV
+        HECOLowerCKKSToEmitCOpenFHE
+        HECOLowerBFVToEmitCOpenFHE
+        HECOLowerBGVToEmitCOpenFHE
         HECOLowerFHEToEmitC
         HECOLowerFHEToEVA
         HECOInsertRelinearize
@@ -43,5 +52,10 @@ llvm_update_compile_flags(heco)
 target_link_libraries(heco PRIVATE ${LIBS})
 
 add_dependencies(heco bfv2emitc)
+add_dependencies(heco ckks2emitc)
+add_dependencies(heco bgv2emitc)
+add_dependencies(heco ckks2emitcopenfhe)
+add_dependencies(heco bfv2emitcopenfhe)
+add_dependencies(heco bgv2emitcopenfhe)
 
 mlir_check_all_link_libraries(heco)

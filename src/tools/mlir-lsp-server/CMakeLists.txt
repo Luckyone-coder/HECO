@@ -13,6 +13,7 @@ set(LIBS
         HECOFHEDialect
         HECOEVADialect
         HECOBFVDialect
+        HECOFHEDialect
         HECOPolyDialect
         MLIRAnalysis
         MLIRDialect

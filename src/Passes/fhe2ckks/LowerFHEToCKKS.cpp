@@ -1,6 +1,6 @@
-#include "heco/Passes/fhe2bfv/LowerFHEToBFV.h"
+#include "heco/Passes/fhe2ckks/LowerFHEToCKKS.h"
 #include <iostream>
-#include "heco/IR/BFV/BFVDialect.h"
+#include "heco/IR/CKKS/CKKSDialect.h"  // 需要创建这个方言
 #include "heco/IR/FHE/FHEDialect.h"
 #include "heco/IR/Poly/PolyDialect.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -10,13 +10,14 @@
 using namespace mlir;
 using namespace heco;
 
-void LowerFHEToBFVPass::getDependentDialects(mlir::DialectRegistry &registry) const
+void LowerFHEToCKKSPass::getDependentDialects(mlir::DialectRegistry &registry) const
 {
-    registry.insert<bfv::BFVDialect>();
+    registry.insert<ckks::CKKSDialect>();  // 需要创建这个方言
     registry.insert<poly::PolyDialect>();
 }
 
-class BFVRotatePattern final : public OpConversionPattern<fhe::RotateOp>
+// 旋转操作转换模式
+class CKKSRotatePattern final : public OpConversionPattern<fhe::RotateOp>
 {
 protected:
     using OpConversionPattern<fhe::RotateOp>::typeConverter;
@@ -25,7 +26,8 @@ public:
     using OpConversionPattern<fhe::RotateOp>::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        fhe::RotateOp op, typename fhe::RotateOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
+        fhe::RotateOp op, typename fhe::RotateOp::Adaptor adaptor,
+        ConversionPatternRewriter &rewriter) const override
     {
         rewriter.setInsertionPoint(op);
 
@@ -33,7 +35,7 @@ public:
         if (!dstType)
             return failure();
 
-        // Materialize the operands where necessary
+        // 具体化操作数
         Value o = op.getOperand();
         Value materialized_operand;
         auto operandDstType = typeConverter->convertType(o.getType());
@@ -46,16 +48,17 @@ public:
             materialized_operand = o;
 
         rewriter.setInsertionPoint(op);
-        auto poly_type = dstType.dyn_cast<bfv::CiphertextType>().getElementType();
+        auto poly_type = dstType.dyn_cast<ckks::CiphertextType>().getElementType();
         // TODO: MATCH PARAMETERS PROPERLY OR GET ACTUAL KEY FROM SOMEWHERE
-        // auto key_type = bfv::GaloisKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
-        // auto keys = rewriter.create<bfv::LoadGaloisKeysOp>(op.getLoc(), key_type, "foo.glk", "glk.parms");
-        rewriter.replaceOpWithNewOp<bfv::RotateOp>(op, dstType, materialized_operand, op.getI());
+        // auto key_type = ckks::GaloisKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
+        // auto keys = rewriter.create<ckks::LoadGaloisKeysOp>(op.getLoc(), key_type, "foo.glk", "glk.parms");
+        rewriter.replaceOpWithNewOp<ckks::RotateOp>(op, dstType, materialized_operand, op.getI());
         return success();
     };
 };
 
-class BFVCombinePattern final : public OpConversionPattern<fhe::CombineOp>
+// 组合操作转换模式
+class CKKSCombinePattern final : public OpConversionPattern<fhe::CombineOp>
 {
 protected:
     using OpConversionPattern<fhe::CombineOp>::typeConverter;
@@ -66,12 +69,13 @@ public:
     LogicalResult matchAndRewrite(
         fhe::CombineOp op, typename fhe::CombineOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
-        // TODO: Handle combining!
+        // TODO: Handle combining for CKKS!
         return failure();
     };
 };
 
-class BFVConstPattern final : public OpConversionPattern<fhe::ConstOp>
+// 常量操作转换模式
+class CKKSConstPattern final : public OpConversionPattern<fhe::ConstOp>
 {
 protected:
     using OpConversionPattern<fhe::ConstOp>::typeConverter;
@@ -82,12 +86,13 @@ public:
     LogicalResult matchAndRewrite(
         fhe::ConstOp op, typename fhe::ConstOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
-        // TODO: Handle const ops!
+        // TODO: Handle const ops for CKKS!
         return failure();
     };
 };
 
-class BFVMaterializePattern final : public OpConversionPattern<fhe::MaterializeOp>
+// 物化操作转换模式
+class CKKSMaterializePattern final : public OpConversionPattern<fhe::MaterializeOp>
 {
 protected:
     using OpConversionPattern<fhe::MaterializeOp>::typeConverter;
@@ -105,7 +110,7 @@ public:
         if (!dstType)
             return failure();
 
-        // Materialize the operands where necessary
+        // 具体化操作数
         llvm::SmallVector<Value> materialized_operands;
         auto o = op.getOperand();
         auto operandDstType = typeConverter->convertType(o.getType());
@@ -122,12 +127,13 @@ public:
             materialized_operands.push_back(o);
         }
 
-        rewriter.replaceOpWithNewOp<bfv::MaterializeOp>(op, TypeRange(dstType), materialized_operands);
+        rewriter.replaceOpWithNewOp<ckks::MaterializeOp>(op, TypeRange(dstType), materialized_operands);
         return success();
     }
 };
 
-class BFVInsertPattern final : public OpConversionPattern<fhe::InsertOp>
+// 插入操作转换模式
+class CKKSInsertPattern final : public OpConversionPattern<fhe::InsertOp>
 {
 protected:
     using OpConversionPattern<fhe::InsertOp>::typeConverter;
@@ -144,7 +150,7 @@ public:
         if (!dstType)
             return failure();
 
-        // Materialize the operands where necessary
+        // 具体化操作数
         llvm::SmallVector<Value> materialized_operands;
         for (Value o : op.getOperands())
         {
@@ -163,13 +169,14 @@ public:
             }
         }
 
-        rewriter.replaceOpWithNewOp<bfv::InsertOp>(
+        rewriter.replaceOpWithNewOp<ckks::InsertOp>(
             op, TypeRange(dstType), materialized_operands[0], materialized_operands[1], op.getIAttr());
         return success();
     }
 };
 
-class BFVExtractPattern final : public OpConversionPattern<fhe::ExtractOp>
+// 提取操作转换模式
+class CKKSExtractPattern final : public OpConversionPattern<fhe::ExtractOp>
 {
 protected:
     using OpConversionPattern<fhe::ExtractOp>::typeConverter;
@@ -186,7 +193,7 @@ public:
         if (!dstType)
             return failure();
 
-        // Materialize the operands where necessary
+        // 具体化操作数
         llvm::SmallVector<Value> materialized_operands;
         auto o = op.getOperand();
         auto operandDstType = typeConverter->convertType(o.getType());
@@ -203,14 +210,14 @@ public:
             materialized_operands.push_back(o);
         }
 
-        rewriter.replaceOpWithNewOp<bfv::ExtractOp>(op, TypeRange(dstType), materialized_operands[0], op.getIAttr());
+        rewriter.replaceOpWithNewOp<ckks::ExtractOp>(op, TypeRange(dstType), materialized_operands[0], op.getIAttr());
         return success();
     }
 };
 
-/// Basic Pattern for operations without attributes.
+/// CKKS基本操作转换模式（针对无属性的操作）
 template <typename OpType>
-class BFVBasicPattern final : public OpConversionPattern<OpType>
+class CKKSBasicPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -227,7 +234,7 @@ public:
         if (!dstType)
             return failure();
 
-        // Materialize the operands where necessary
+        // 具体化操作数
         llvm::SmallVector<Value> materialized_operands;
         for (Value o : op->getOperands())
         {
@@ -247,49 +254,54 @@ public:
         }
         // TODO: Handle ctxt-ptxt versions for all operations!
 
-        // Additions
+        // 加法操作
         if (std::is_same<OpType, fhe::AddOp>())
         {
             if (op->getNumOperands() > 2)
-                rewriter.replaceOpWithNewOp<bfv::AddManyOp>(op, TypeRange(dstType), materialized_operands);
+                rewriter.replaceOpWithNewOp<ckks::AddManyOp>(op, TypeRange(dstType), materialized_operands);
             else
-                rewriter.replaceOpWithNewOp<bfv::AddOp>(op, TypeRange(dstType), materialized_operands);
+                rewriter.replaceOpWithNewOp<ckks::AddOp>(op, TypeRange(dstType), materiali
+            zed_operands);
             return success();
         }
-        // Subtractions
+        // 减法操作
         else if (std::is_same<OpType, fhe::SubOp>())
         {
-            rewriter.replaceOpWithNewOp<bfv::SubOp>(op, TypeRange(dstType), materialized_operands);
+            rewriter.replaceOpWithNewOp<ckks::SubOp>(op, TypeRange(dstType), materialized_operands);
             return success();
         }
         // Sigmoid
         else if (std::is_same<OpType, fhe::SigmoidOp>())
         {
-            rewriter.replaceOpWithNewOp<bfv::SigmoidOp>(op, TypeRange(dstType), materialized_operands);
+            rewriter.replaceOpWithNewOp<ckks::SigmoidOp>(op, TypeRange(dstType), materialized_operands);
             return success();
         }
-        // Multiplications
+        // 乘法操作
         else if (std::is_same<OpType, fhe::MultiplyOp>())
         {
             if (op->getNumOperands() > 2)
             {
                 // TODO: Handle ptxt in multiplies with more than two arguments
                 rewriter.setInsertionPoint(op);
-                auto poly_type = op.getType().template dyn_cast<bfv::CiphertextType>().getElementType();
+                auto poly_type = op.getType().template dyn_cast<ckks::CiphertextType>().getElementType();
                 // TODO: MATCH PARAMETERS PROPERLY OR GET ACTUAL KEY FROM SOMEWHERE
-                // auto key_type = bfv::RelinKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
-                // auto keys = rewriter.create<bfv::LoadRelinKeysOp>(op.getLoc(), key_type, "foo.rlk", "rlk.parms");
+                // auto key_type = ckks::RelinKeysType::get(rewriter.getContext(), 0, 0, 0, poly_type);
+                // auto keys = rewriter.create<ckks::LoadRelinKeysOp>(op.getLoc(), key_type, "foo.rlk", "rlk.parms");
                 auto new_op =
-                    rewriter.replaceOpWithNewOp<bfv::MultiplyManyOp>(op, TypeRange(dstType), materialized_operands);
+                    rewriter.replaceOpWithNewOp<ckks::MultiplyManyOp>(op, TypeRange(dstType), materialized_operands);
                 rewriter.setInsertionPointAfter(new_op);
+                // @TODO:可能CKKS需要重新缩放以控制噪声增长
             }
             else
             {
-                // TODO: Handle ptxt in first position, too!
-                if (materialized_operands.size() == 2 && materialized_operands[1].getType().isa<bfv::PlaintextType>())
-                    rewriter.replaceOpWithNewOp<bfv::MultiplyPlainOp>(op, TypeRange(dstType), materialized_operands);
+                // TODO: wHandle ptxt in first position, too!
+                if (materialized_operands.size() == 2 && materialized_operands[1].getType().isa<ckks::PlaintextType>())
+                    rewriter.replaceOpWithNewOp<ckks::MultiplyPlainOp>(op, TypeRange(dstType), materialized_operands);
                 else
-                    rewriter.replaceOpWithNewOp<bfv::MultiplyOp>(op, TypeRange(dstType), materialized_operands);
+                {
+                    auto new_op = rewriter.replaceOpWithNewOp<ckks::MultiplyOp>(op, TypeRange(dstType), materialized_operands);
+                    // @TODO:可能CKKS需要重新缩放以控制噪声增长
+                }
             }
             return success();
         }
@@ -298,9 +310,8 @@ public:
     };
 };
 
-/// This is basically just boiler-plate code,
-/// nothing here actually depends on the current dialect thats being converted.
-class BFVFunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
+/// 函数转换模式（样板代码，不依赖于特定方言）
+class CKKSFunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
 {
 public:
     using OpConversionPattern<func::FuncOp>::OpConversionPattern;
@@ -308,7 +319,7 @@ public:
     LogicalResult matchAndRewrite(
         func::FuncOp op, typename func::FuncOp::Adaptor adaptor, ConversionPatternRewriter &rewriter) const override
     {
-        // Compute the new signature of the function.
+        // 计算函数的新签名
         TypeConverter::SignatureConversion signatureConversion(op.getFunctionType().getNumInputs());
         SmallVector<Type> newResultTypes;
         if (failed(typeConverter->convertTypes(op.getFunctionType().getResults(), newResultTypes)))
@@ -338,8 +349,8 @@ public:
     }
 };
 
-/// More boiler-plate code that isn't dialect specific
-class BFVReturnPattern final : public OpConversionPattern<func::ReturnOp>
+/// 更多不依赖方言的样板代码
+class CKKSReturnPattern final : public OpConversionPattern<func::ReturnOp>
 {
 public:
     using OpConversionPattern<func::ReturnOp>::OpConversionPattern;
@@ -359,14 +370,14 @@ public:
         rewriter.setInsertionPoint(op);
         auto materialized =
             typeConverter->materializeTargetConversion(rewriter, op.getLoc(), dstType, op.getOperands());
-        // build a new return op
+        // 构建新的返回操作
         rewriter.replaceOpWithNewOp<func::ReturnOp>(op, materialized);
 
         return success();
     }
 };
 
-void LowerFHEToBFVPass::runOnOperation()
+void LowerFHEToCKKSPass::runOnOperation()
 {
     // TODO: We still need to emit a pre-amble with an include statement
     //  this should refer to some "magic file" that also sets up keys/etc and our custom evaluator wrapper for now
@@ -375,90 +386,93 @@ void LowerFHEToBFVPass::runOnOperation()
 
     type_converter.addConversion([&](Type t) {
         if (t.isa<fhe::BatchedSecretType>())
-            // TODO: How to find the correct type here?
-            return std::optional<Type>(bfv::CiphertextType::get(
+            // TODO: How to find the correct type here? CKKS specific parameters
+            return std::optional<Type>(ckks::CiphertextType::get(
                 &getContext(), 1, poly::PolynomialType::get(&getContext(), 2, true, 17, "parms.txt")));
         else if (t.isa<fhe::SecretType>())
-            // TODO: How to find the correct type here?
-            return std::optional<Type>(bfv::CiphertextType::get(
+            // TODO: How to find the correct type here? CKKS specific parameters
+            return std::optional<Type>(ckks::CiphertextType::get(
                 &getContext(), 1, poly::PolynomialType::get(&getContext(), 2, true, 17, "parms.txt")));
         else if (t.isIntOrIndexOrFloat())
-            // TODO: How to find the correct type here?
-            return std::optional<Type>(bfv::PlaintextType::get(
+            // CKKS主要处理浮点数，但也可以处理整数
+            return std::optional<Type>(ckks::PlaintextType::get(
                 &getContext(), poly::PolynomialType::get(&getContext(), 2, true, 17, "parms.txt")));
         else
             return std::optional<Type>(t);
     });
+
     type_converter.addTargetMaterialization([&](OpBuilder &builder, Type t, ValueRange vs, Location loc) {
-        if (auto ot = t.dyn_cast_or_null<bfv::CiphertextType>())
+        if (auto ot = t.dyn_cast_or_null<ckks::CiphertextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.dyn_cast_or_null<fhe::BatchedSecretType>() || old_type.dyn_cast_or_null<fhe::SecretType>())
             {
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
         }
-        else if (auto ot = t.dyn_cast_or_null<bfv::PlaintextType>())
+        else if (auto ot = t.dyn_cast_or_null<ckks::PlaintextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.isIntOrIndexOrFloat())
             {
-                return std::optional<Value>(builder.create<bfv::EncodeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<ckks::EncodeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
+
     type_converter.addArgumentMaterialization([&](OpBuilder &builder, Type t, ValueRange vs, Location loc) {
-        if (auto ot = t.dyn_cast_or_null<bfv::CiphertextType>())
+        if (auto ot = t.dyn_cast_or_null<ckks::CiphertextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.dyn_cast_or_null<fhe::BatchedSecretType>() || old_type.dyn_cast_or_null<fhe::SecretType>())
             {
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, ot, vs));
             }
         }
-        else if (auto ot = t.dyn_cast_or_null<bfv::PlaintextType>())
+        else if (auto ot = t.dyn_cast_or_null<ckks::PlaintextType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materalize single values");
             auto old_type = vs.front().getType();
             if (old_type.isIntOrIndexOrFloat())
             {
-                return std::optional<Value>(builder.create<bfv::EncodeOp>(loc, ot, vs));
+                return std::optional<Value>(builder.create<ckks::EncodeOp>(loc, ot, vs));
             }
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
+
     type_converter.addSourceMaterialization([&](OpBuilder &builder, Type t, ValueRange vs, Location loc) {
         if (auto bst = t.dyn_cast_or_null<fhe::BatchedSecretType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
-            if (auto ot = old_type.dyn_cast_or_null<bfv::CiphertextType>())
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
+            if (auto ot = old_type.dyn_cast_or_null<ckks::CiphertextType>())
+                return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, bst, vs));
         }
         else if (auto st = t.dyn_cast_or_null<fhe::SecretType>())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
-            if (auto ot = old_type.dyn_cast_or_null<bfv::CiphertextType>())
-                return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, st, vs));
+            if (auto ot = old_type.dyn_cast_or_null<ckks::CiphertextType>())
+                return std::optional<Value>(builder.create<ckks::MaterializeOp>(loc, st, vs));
         }
         else if (t.isIntOrIndexOrFloat())
         {
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
-            if (auto ot = old_type.dyn_cast_or_null<bfv::PlaintextType>())
-                return std::optional<Value>(builder.create<bfv::EncodeOp>(loc, t, vs));
+            if (auto ot = old_type.dyn_cast_or_null<ckks::PlaintextType>())
+                return std::optional<Value>(builder.create<ckks::DecodeOp>(loc, t, vs));
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
     });
 
     ConversionTarget target(getContext());
     target.addIllegalDialect<fhe::FHEDialect>();
-    target.addLegalDialect<bfv::BFVDialect>();
+    target.addLegalDialect<ckks::CKKSDialect>();
     target.addLegalOp<ModuleOp>();
     target.addLegalOp<fhe::ConstOp>();
     target.addLegalOp<fhe::CombineOp>();
@@ -491,9 +505,9 @@ void LowerFHEToBFVPass::runOnOperation()
     mlir::RewritePatternSet patterns(&getContext());
 
     patterns.add<
-        BFVFunctionConversionPattern, BFVReturnPattern, BFVBasicPattern<fhe::SubOp>, BFVBasicPattern<fhe::AddOp>,
-        BFVBasicPattern<fhe::SubOp>, BFVBasicPattern<fhe::MultiplyOp>, BFVRotatePattern, BFVConstPattern, BFVBasicPattern<fhe::SigmoidOp>,
-        BFVMaterializePattern, BFVInsertPattern, BFVExtractPattern>(type_converter, patterns.getContext());
+        CKKSFunctionConversionPattern, CKKSReturnPattern, CKKSBasicPattern<fhe::AddOp>,
+        CKKSBasicPattern<fhe::SubOp>, CKKSBasicPattern<fhe::MultiplyOp>, CKKSRotatePattern, CKKSConstPattern,CKKSBasicPattern<fhe::SigmoidOp>,
+        CKKSMaterializePattern, CKKSInsertPattern, CKKSExtractPattern>(type_converter, patterns.getContext());
 
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns))))
         signalPassFailure();

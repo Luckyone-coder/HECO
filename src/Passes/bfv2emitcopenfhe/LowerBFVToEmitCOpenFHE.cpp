@@ -1,4 +1,4 @@
-#include "heco/Passes/bfv2emitc/LowerBFVToEmitC.h"
+#include "heco/Passes/bfv2emitcopenfhe/LowerBFVToEmitCOpenFHE.h"
 #include "heco/IR/BFV/BFVDialect.h"
 #include "llvm/ADT/APSInt.h"
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -12,13 +12,13 @@
 using namespace mlir;
 using namespace heco;
 
-void LowerBFVToEmitCPass::getDependentDialects(mlir::DialectRegistry &registry) const
+void LowerBFVToEmitCOpenFHEPass::getDependentDialects(mlir::DialectRegistry &registry) const
 {
     registry.insert<mlir::emitc::EmitCDialect>();
 }
 
 /// Convert Rotate
-class EmitCRotatePattern final : public OpConversionPattern<bfv::RotateOp>
+class EmitCOpenFHERotatePattern final : public OpConversionPattern<bfv::RotateOp>
 {
 public:
     using OpConversionPattern<bfv::RotateOp>::OpConversionPattern;
@@ -59,14 +59,14 @@ public:
                             rewriter.getSI32IntegerAttr(op.getOffset()) });
 
         rewriter.replaceOpWithNewOp<emitc::CallOp>(
-            op, TypeRange(dstType), llvm::StringRef("evaluator_rotate"), aa, ArrayAttr(), materialized_operands);
+            op, TypeRange(dstType), llvm::StringRef("cc->EvalRotate"), aa, ArrayAttr(), materialized_operands);
 
         return success();
     }
 };
 
 /// Convert Relin
-class EmitCRelinPattern final : public OpConversionPattern<bfv::RelinearizeOp>
+class EmitCOpenFHERelinPattern final : public OpConversionPattern<bfv::RelinearizeOp>
 {
 public:
     using OpConversionPattern<bfv::RelinearizeOp>::OpConversionPattern;
@@ -110,7 +110,7 @@ public:
 };
 
 /// Convert Encode
-class EmitCEncodePattern final : public OpConversionPattern<bfv::EncodeOp>
+class EmitCOpenFHEEncodePattern final : public OpConversionPattern<bfv::EncodeOp>
 {
 public:
     using OpConversionPattern<bfv::EncodeOp>::OpConversionPattern;
@@ -151,7 +151,7 @@ public:
 };
 
 /// Convert Decode
-class EmitCDecodePattern final : public OpConversionPattern<bfv::DecodeOp>
+class EmitCOpenFHEDecodePattern final : public OpConversionPattern<bfv::DecodeOp>
 {
 public:
     using OpConversionPattern<bfv::DecodeOp>::OpConversionPattern;
@@ -192,7 +192,7 @@ public:
 };
 
 /// Convert Sink
-class EmitCSinkPattern final : public OpConversionPattern<bfv::SinkOp>
+class EmitCOpenFHESinkPattern final : public OpConversionPattern<bfv::SinkOp>
 {
 public:
     using OpConversionPattern<bfv::SinkOp>::OpConversionPattern;
@@ -228,7 +228,7 @@ public:
 
 /// Basic Pattern for operations without attributes.
 template <typename OpType>
-class EmitCBasicPattern final : public OpConversionPattern<OpType>
+class EmitCOpenFHEBasicPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -268,21 +268,21 @@ public:
         // seal's API)
         std::string op_str = "";
         if (std::is_same<OpType, bfv::SubOp>())
-            op_str = "sub";
+            op_str = "cc->EvalSub";
         else if (std::is_same<OpType, bfv::SubPlainOp>())
-            op_str = "sub_plain";
+            op_str = "cc->EvalSub";
         else if (std::is_same<OpType, bfv::AddOp>())
-            op_str = "add";
+            op_str = "cc->EvalAdd";
         else if (std::is_same<OpType, bfv::AddPlainOp>())
-            op_str = "add_plain";
+            op_str = "cc->EvalAdd";
         else if (std::is_same<OpType, bfv::AddManyOp>())
             op_str = "add_many";
         else if (std::is_same<OpType, bfv::MultiplyOp>())
-            op_str = "multiply";
+            op_str = "cc->EvalMult";
         else if (std::is_same<OpType, bfv::MultiplyPlainOp>())
-            op_str = "multiply_plain";
+            op_str = "cc->EvalMult";
         else if (std::is_same<OpType, bfv::MultiplyManyOp>())
-            op_str = "multiply_plain";
+            op_str = "cc->EvalMult";
         else if (std::is_same<OpType, bfv::ModswitchToOp>())
             op_str = "modswitch_to";
         else if (std::is_same<OpType, bfv::SigmoidOp>())
@@ -294,10 +294,10 @@ public:
         if (std::is_same<OpType, bfv::AddManyOp>() || std::is_same<OpType, bfv::MultiplyManyOp>())
         {
             auto template_array = ArrayAttr::get(
-                rewriter.getContext(), { emitc::OpaqueAttr::get(rewriter.getContext(), "seal::Ciphertext") });
+                rewriter.getContext(), { emitc::OpaqueAttr::get(rewriter.getContext(), "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>") });
             emitc::CallOp v = rewriter.create<emitc::CallOp>(
                 op.getLoc(), TypeRange(emitc::OpaqueType::get(rewriter.getContext(), "std::vector<seal::Ciphertext>")),
-                llvm::StringRef("std::vector"), ArrayAttr(), template_array, ValueRange());
+                llvm::StringRef("std::vector"), ArrayAttr(), template_array, ValueRange()); // 这里的逻辑需要改。
 
             size_t num_operands =
                 std::is_same<OpType, bfv::AddManyOp>() ? op->getNumOperands() : op->getNumOperands() - 1;
@@ -311,20 +311,20 @@ public:
             if (std::is_same<OpType, bfv::AddManyOp>())
             {
                 rewriter.replaceOpWithNewOp<emitc::CallOp>(
-                    op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
+                    op, TypeRange(dstType), llvm::StringRef(op_str), ArrayAttr(), ArrayAttr(),
                     ValueRange{ (v.getResult(0)) });
             }
             else
             {
                 rewriter.replaceOpWithNewOp<emitc::CallOp>(
-                    op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
+                    op, TypeRange(dstType), llvm::StringRef(op_str), ArrayAttr(), ArrayAttr(),
                     ValueRange{ (v.getResult(0)), materialized_operands.back() });
             }
         }
         else
         {
             rewriter.replaceOpWithNewOp<emitc::CallOp>(
-                op, TypeRange(dstType), llvm::StringRef("evaluator_" + op_str), ArrayAttr(), ArrayAttr(),
+                op, TypeRange(dstType), llvm::StringRef(op_str), ArrayAttr(), ArrayAttr(),
                 materialized_operands);
         }
 
@@ -334,7 +334,7 @@ public:
 
 /// Pattern for operations with file and parms attributes.
 template <typename OpType>
-class EmitCLoadPattern final : public OpConversionPattern<OpType>
+class EmitCOpenFHELoadPattern final : public OpConversionPattern<OpType>
 {
 protected:
     using OpConversionPattern<OpType>::typeConverter;
@@ -382,7 +382,7 @@ public:
 
 /// This is basically just boiler-plate code,
 /// nothing here actually depends on the current dialect thats being converted.
-class FunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
+class BFVOpenFHEFunctionConversionPattern final : public OpConversionPattern<func::FuncOp>
 {
 public:
     using OpConversionPattern<func::FuncOp>::OpConversionPattern;
@@ -421,7 +421,7 @@ public:
 };
 
 /// More boiler-plate code that isn't dialect specific
-class EmitCReturnPattern final : public OpConversionPattern<func::ReturnOp>
+class EmitCOpenFHEReturnPattern final : public OpConversionPattern<func::ReturnOp>
 {
 public:
     using OpConversionPattern<func::ReturnOp>::OpConversionPattern;
@@ -450,7 +450,7 @@ public:
     }
 };
 
-void LowerBFVToEmitCPass::runOnOperation()
+void LowerBFVToEmitCOpenFHEPass::runOnOperation()
 {
     // TODO: We still need to emit a pre-amble with an include statement
     //  this should refer to some "magic file" that also sets up keys/etc and our custom evaluator wrapper for now
@@ -459,15 +459,15 @@ void LowerBFVToEmitCPass::runOnOperation()
 
     type_converter.addConversion([&](Type t) {
         if (t.isa<bfv::CiphertextType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Ciphertext"));
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>"));
         else if (t.isa<bfv::PlaintextType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::Plaintext"));
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::Plaintext"));
         else if (t.isa<bfv::PublicKeyType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::PublicKey"));
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::PublicKey"));
         else if (t.isa<bfv::RelinKeysType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::RelinKeys"));
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::RelinKeys"));
         else if (t.isa<bfv::GaloisKeysType>())
-            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "seal::GaloisKeys"));
+            return std::optional<Type>(emitc::OpaqueType::get(&getContext(), "lbcrypto::GaloisKeys"));
         else
             return std::optional<Type>(t);
     });
@@ -478,27 +478,27 @@ void LowerBFVToEmitCPass::runOnOperation()
             auto old_type = vs.front().getType();
             if (old_type.dyn_cast_or_null<bfv::CiphertextType>())
             {
-                if (ot.getValue().str() == "seal::Ciphertext")
+                if (ot.getValue().str() == "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::PlaintextType>())
             {
-                if (ot.getValue().str() == "seal::Plaintext")
+                if (ot.getValue().str() == "lbcrypto::Plaintext")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::PublicKeyType>())
             {
-                if (ot.getValue().str() == "seal::PublicKey")
+                if (ot.getValue().str() == "lbcrypto::PublicKey")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::RelinKeysType>())
             {
-                if (ot.getValue().str() == "seal::RelinKeys")
+                if (ot.getValue().str() == "lbcrypto::RelinKeys")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::GaloisKeysType>())
             {
-                if (ot.getValue().str() == "seal::GaloisKeys")
+                if (ot.getValue().str() == "lbcrypto::GaloisKeys")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
         }
@@ -511,27 +511,27 @@ void LowerBFVToEmitCPass::runOnOperation()
             auto old_type = vs.front().getType();
             if (old_type.dyn_cast_or_null<bfv::CiphertextType>())
             {
-                if (ot.getValue().str() == "seal::Ciphertext")
+                if (ot.getValue().str() == "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::PlaintextType>())
             {
-                if (ot.getValue().str() == "seal::Plaintext")
+                if (ot.getValue().str() == "lbcrypto::Plaintext")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::PublicKeyType>())
             {
-                if (ot.getValue().str() == "seal::PublicKey")
+                if (ot.getValue().str() == "lbcrypto::PublicKey")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::RelinKeysType>())
             {
-                if (ot.getValue().str() == "seal::RelinKeys")
+                if (ot.getValue().str() == "lbcrypto::RelinKeys")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
             else if (old_type.dyn_cast_or_null<bfv::GaloisKeysType>())
             {
-                if (ot.getValue().str() == "seal::GaloisKeys")
+                if (ot.getValue().str() == "lbcrypto::GaloisKeys")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, ot, vs));
             }
         }
@@ -543,7 +543,7 @@ void LowerBFVToEmitCPass::runOnOperation()
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::Ciphertext")
+                if (ot.getValue().str() == "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
         }
         else if (auto bst = t.dyn_cast_or_null<bfv::PlaintextType>())
@@ -551,7 +551,7 @@ void LowerBFVToEmitCPass::runOnOperation()
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::Plaintext")
+                if (ot.getValue().str() == "lbcrypto::Plaintext")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
         }
         else if (auto bst = t.dyn_cast_or_null<bfv::PublicKeyType>())
@@ -559,7 +559,7 @@ void LowerBFVToEmitCPass::runOnOperation()
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::PublicKey")
+                if (ot.getValue().str() == "lbcrypto::PublicKey")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
         }
         else if (auto bst = t.dyn_cast_or_null<bfv::RelinKeysType>())
@@ -567,7 +567,7 @@ void LowerBFVToEmitCPass::runOnOperation()
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::RelinKeys")
+                if (ot.getValue().str() == "lbcrypto::RelinKeys")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
         }
         else if (auto bst = t.dyn_cast_or_null<bfv::GaloisKeysType>())
@@ -575,7 +575,7 @@ void LowerBFVToEmitCPass::runOnOperation()
             assert(!vs.empty() && ++vs.begin() == vs.end() && "currently can only materialize single values");
             auto old_type = vs.front().getType();
             if (auto ot = old_type.dyn_cast_or_null<emitc::OpaqueType>())
-                if (ot.getValue().str() == "seal::GaloisKeys")
+                if (ot.getValue().str() == "lbcrypto::GaloisKeys")
                     return std::optional<Value>(builder.create<bfv::MaterializeOp>(loc, bst, vs));
         }
         return std::optional<Value>(std::nullopt); /* would instead like to signal NO other conversions can be tried */
@@ -617,13 +617,13 @@ void LowerBFVToEmitCPass::runOnOperation()
     // TODO: Emit the emitc.include operation!
 
     patterns.add<
-        EmitCBasicPattern<bfv::SubOp>, EmitCBasicPattern<bfv::SubPlainOp>, EmitCBasicPattern<bfv::AddOp>,
-        EmitCBasicPattern<bfv::AddPlainOp>, EmitCBasicPattern<bfv::AddManyOp>, EmitCBasicPattern<bfv::MultiplyOp>,
-        EmitCBasicPattern<bfv::MultiplyPlainOp>, EmitCBasicPattern<bfv::MultiplyManyOp>, EmitCBasicPattern<bfv::SigmoidOp>,
-        EmitCBasicPattern<bfv::ModswitchToOp>, EmitCLoadPattern<bfv::LoadCtxtOp>, EmitCLoadPattern<bfv::LoadPtxtOp>,
-        EmitCLoadPattern<bfv::LoadPublicKeyOp>, EmitCLoadPattern<bfv::LoadRelinKeysOp>,
-        EmitCLoadPattern<bfv::LoadGaloisKeysOp>, EmitCRelinPattern, EmitCRotatePattern, EmitCEncodePattern,
-        EmitCDecodePattern, EmitCSinkPattern, FunctionConversionPattern, EmitCReturnPattern>(
+        EmitCOpenFHEBasicPattern<bfv::SubOp>, EmitCOpenFHEBasicPattern<bfv::SubPlainOp>, EmitCOpenFHEBasicPattern<bfv::AddOp>,
+        EmitCOpenFHEBasicPattern<bfv::AddPlainOp>, EmitCOpenFHEBasicPattern<bfv::AddManyOp>, EmitCOpenFHEBasicPattern<bfv::MultiplyOp>,
+        EmitCOpenFHEBasicPattern<bfv::MultiplyPlainOp>, EmitCOpenFHEBasicPattern<bfv::MultiplyManyOp>, EmitCOpenFHEBasicPattern<bfv::SigmoidOp>,
+        EmitCOpenFHEBasicPattern<bfv::ModswitchToOp>, EmitCOpenFHELoadPattern<bfv::LoadCtxtOp>, EmitCOpenFHELoadPattern<bfv::LoadPtxtOp>,
+        EmitCOpenFHELoadPattern<bfv::LoadPublicKeyOp>, EmitCOpenFHELoadPattern<bfv::LoadRelinKeysOp>,
+        EmitCOpenFHELoadPattern<bfv::LoadGaloisKeysOp>, EmitCOpenFHERelinPattern, EmitCOpenFHERotatePattern, EmitCOpenFHEEncodePattern,
+        EmitCOpenFHEDecodePattern, EmitCOpenFHESinkPattern, BFVOpenFHEFunctionConversionPattern, EmitCOpenFHEReturnPattern>(
         type_converter, patterns.getContext());
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns))))
         signalPassFailure();

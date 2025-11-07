@@ -1,5 +1,5 @@
-#ifndef TOOLCHAIN_BFV_BFV_TD_
-#define TOOLCHAIN_BFV_BFV_TD_
+#ifndef TOOLCHAIN_CKKS_CKKS_TD_
+#define TOOLCHAIN_CKKS_CKKS_TD_
 
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
@@ -15,44 +15,44 @@ include "mlir/IR/SymbolInterfaces.td"
 
 // This is a TableGen file, using ODS (https://mlir.llvm.org/docs/OpDefinitions/) to define a dialect, its types and its operations.
 // The add_mlir_dialect(..) call in CMakeLists.txt adds steps to  generate *.h.inc and *.cpp.inc files from this file.
-// These are included in BFVDialect.h. Note that the generated files only ever exist in the cmake build folder (not commited to source control).
-// Additional custom function body definitions for advanced functionality are found in src/BFVDialect.cpp
+// These are included in CKKSDialect.h. Note that the generated files only ever exist in the cmake build folder (not commited to source control).
+// Additional custom function body definitions for advanced functionality are found in src/CKKSDialect.cpp
 
 //===----------------------------------------------------------------------===//
-// BFV dialect definition.
+// CKKS dialect definition.
 //===----------------------------------------------------------------------===//
 
-def BFV_Dialect : Dialect {
+def CKKS_Dialect : Dialect {
 
     // This name will prefix all the dialect's operations in textual MLIR representation
     // i.e., operation names will appear as "<dialect_name>.<operation_mnemonic>"
-    let name = "bfv";
+    let name = "ckks";
 
-    let summary = "BFV Dialect.";
+    let summary = "CKKS Dialect.";
 
     let description = [{
-        This dialect represents a common abstraction for BFV operations.
+        This dialect represents a common abstraction for CKKS operations.
     }];
 
-    let cppNamespace = "::heco::bfv";
+    let cppNamespace = "::heco::ckks";
 
     // We set this bit to generate the declarations for the dialect's type parsing and printing hooks.
     let useDefaultTypePrinterParser = 1;
 }
 
 //===----------------------------------------------------------------------===//
-// BFV trait definitions.
+// CKKS trait definitions.
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// BFV constraint definitions.
+// CKKS constraint definitions.
 //===----------------------------------------------------------------------===//
 
 //===----------------------------------------------------------------------===//
-// BFV type definitions.
+// CKKS type definitions.
 //===----------------------------------------------------------------------===//
 
-def Ciphertext : TypeDef<BFV_Dialect, "Ciphertext">  {
+def Ciphertext : TypeDef<CKKS_Dialect, "Ciphertext">  {
 
   // See https://mlir.llvm.org/docs/OpDefinitions/#type-definitions
   // for detailed information on how declartive type definitions work
@@ -76,7 +76,7 @@ def Ciphertext : TypeDef<BFV_Dialect, "Ciphertext">  {
   let assemblyFormat = "`<` $size `x` $elementType `>`";
 }
 
-def Plaintext : TypeDef<BFV_Dialect, "Plaintext">  {
+def Plaintext : TypeDef<CKKS_Dialect, "Plaintext">  {
 
   // See https://mlir.llvm.org/docs/OpDefinitions/#type-definitions
   // for detailed information on how declartive type definitions work
@@ -100,7 +100,7 @@ def Plaintext : TypeDef<BFV_Dialect, "Plaintext">  {
 }
 
 
-def PublicKey : TypeDef<BFV_Dialect, "PublicKey">  {
+def PublicKey : TypeDef<CKKS_Dialect, "PublicKey">  {
 
   // See https://mlir.llvm.org/docs/OpDefinitions/#type-definitions
   // for detailed information on how declartive type definitions work
@@ -123,7 +123,7 @@ def PublicKey : TypeDef<BFV_Dialect, "PublicKey">  {
   let assemblyFormat = "`<` $size `x` $elementType `>`";
 }
 
-def RelinKeys : TypeDef<BFV_Dialect, "RelinKeys">  {
+def RelinKeys : TypeDef<CKKS_Dialect, "RelinKeys">  {
 
   // See https://mlir.llvm.org/docs/OpDefinitions/#type-definitions
   // for detailed information on how declartive type definitions work
@@ -148,7 +148,7 @@ def RelinKeys : TypeDef<BFV_Dialect, "RelinKeys">  {
   let assemblyFormat = "`<` $num_keys `x` $num_elements `x` $size `x` $elementType `>`";
 }
 
-def GaloisKeys : TypeDef<BFV_Dialect, "GaloisKeys">  {
+def GaloisKeys : TypeDef<CKKS_Dialect, "GaloisKeys">  {
 
   // See https://mlir.llvm.org/docs/OpDefinitions/#type-definitions
   // for detailed information on how declartive type definitions work
@@ -176,15 +176,15 @@ def GaloisKeys : TypeDef<BFV_Dialect, "GaloisKeys">  {
 
 
 //===----------------------------------------------------------------------===//
-// BFV Operations
+// CKKS Operations
 //===----------------------------------------------------------------------===//
 
 // This is a TableGen helper, it is more like a "template" than a "class" 
 // in that the final C++ classes generated for the operations will not inherit from this
-// nor will there be a C++ class bfv::Op
-class BFV_Op<string mnemonic, list<Trait> traits = []> :
+// nor will there be a C++ class ckks::Op
+class CKKS_Op<string mnemonic, list<Trait> traits = []> :
         // We specify the dialect, and add the "Pure" trait to all operations
-        Op<BFV_Dialect, mnemonic, !listconcat(traits, [Pure])> {
+        Op<CKKS_Dialect, mnemonic, !listconcat(traits, [Pure])> {
 
   // The assembly format for most operations is similar enough to allow us
   // to define a generic version here, which only a few operations override.
@@ -201,7 +201,7 @@ class BFV_Op<string mnemonic, list<Trait> traits = []> :
 // (See https://github.com/llvm/llvm-project/blob/02b6fb218e44490f3ea1597e35df1b1b66c6b869/mlir/lib/TableGen/Operator.cpp#L40-L43 )
 // However, it is good practice to make it <DIALECT>. Similarily, the "Op" at the end is a convention, not a requirement.
 
-def BFV_LoadCtxtOp : BFV_Op<"load_ctxt", []> {
+def CKKS_LoadCtxtOp : CKKS_Op<"load_ctxt", []> {
   let summary = "Loads ciphertext.";
 
   let description = [{
@@ -212,7 +212,7 @@ def BFV_LoadCtxtOp : BFV_Op<"load_ctxt", []> {
     // Attributes are compile-time-known inputs ("immediate values"), whereas operands are the results of another operation
     StrAttr: $file,  
     StrAttr: $parms
-    // TODO (Design): In bfv.load_ctxt, should  we add the serialization info (ntt, rns) into another attribute?
+    // TODO (Design): In ckks.load_ctxt, should  we add the serialization info (ntt, rns) into another attribute?
   );
 
   let results = (outs
@@ -220,13 +220,13 @@ def BFV_LoadCtxtOp : BFV_Op<"load_ctxt", []> {
   );
 
   // TODO (Q&A): Using type($output) instead of type(results) in operation assembly format causes odd error:
-  //  the output will omit the !bfv.ctxt before the <..>
+  //  the output will omit the !ckks.ctxt before the <..>
   let assemblyFormat = [{
     attr-dict `:` type(results)
   }];
 }
 
-def BFV_LoadPtxtOp : BFV_Op<"load_ptxt", []> {
+def CKKS_LoadPtxtOp : CKKS_Op<"load_ptxt", []> {
   let summary = "Loads plaintext.";
 
   let description = [{
@@ -237,7 +237,7 @@ def BFV_LoadPtxtOp : BFV_Op<"load_ptxt", []> {
     // Attributes are compile-time-known inputs ("immediate values"), whereas operands are the results of another operation
     StrAttr: $file,  
     StrAttr: $parms
-    // TODO (Design): In bfv.load_ptxt, should  we add the serialization info (ntt, rns) into another attribute?
+    // TODO (Design): In ckks.load_ptxt, should  we add the serialization info (ntt, rns) into another attribute?
   );
 
   let results = (outs
@@ -245,13 +245,13 @@ def BFV_LoadPtxtOp : BFV_Op<"load_ptxt", []> {
   );
 
   // TODO (Q&A): Using type($output) instead of type(results) in operation assembly format causes odd error:
-  //  the output will omit the !bfv.ctxt before the <..>
+  //  the output will omit the !ckks.ctxt before the <..>
   let assemblyFormat = [{
     attr-dict `:` type(results)
   }];
 }
 
-def BFV_LoadPublicKeyOp : BFV_Op<"load_public_key", []> {
+def CKKS_LoadPublicKeyOp : CKKS_Op<"load_public_key", []> {
   let summary = "Load public key.";
 
   let arguments = (ins
@@ -265,13 +265,13 @@ def BFV_LoadPublicKeyOp : BFV_Op<"load_public_key", []> {
   );
 
   // TODO (Q&A): Using type($output) instead of type(results) in operation assembly format causes odd error:
-  //  the output will omit the !bfv.ctxt before the <..>
+  //  the output will omit the !ckks.ctxt before the <..>
   let assemblyFormat = [{
     attr-dict `:` type(results)
   }];
 }
 
-def BFV_LoadRelinKeysOp : BFV_Op<"load_relin_keys", []> {
+def CKKS_LoadRelinKeysOp : CKKS_Op<"load_relin_keys", []> {
   let summary = "Loads relineraization keys.";
 
   let arguments = (ins
@@ -285,13 +285,13 @@ def BFV_LoadRelinKeysOp : BFV_Op<"load_relin_keys", []> {
   );
 
   // TODO (Q&A): Using type($output) instead of type(results) in operation assembly format causes odd error:
-  //  the output will omit the !bfv.ctxt before the <..>
+  //  the output will omit the !ckks.ctxt before the <..>
   let assemblyFormat = [{
     attr-dict `:` type(results)
   }];
 }
 
-def BFV_LoadGaloisKeysOp : BFV_Op<"load_galois_keys", []> {
+def CKKS_LoadGaloisKeysOp : CKKS_Op<"load_galois_keys", []> {
   let summary = "Loads galois keys.";
 
   let arguments = (ins
@@ -305,13 +305,13 @@ def BFV_LoadGaloisKeysOp : BFV_Op<"load_galois_keys", []> {
   );
 
   // TODO (Q&A): Using type($output) instead of type(results) in operation assembly format causes odd error:
-  //  the output will omit the !bfv.ctxt before the <..>
+  //  the output will omit the !ckks.ctxt before the <..>
   let assemblyFormat = [{
     attr-dict `:` type(results)
   }];
 }
 
-def BFV_SinkOp : BFV_Op<"sink", [Terminator, ReturnLike]> {
+def CKKS_SinkOp : CKKS_Op<"sink", [Terminator, ReturnLike]> {
   // We add the "Terminator" trait, which signals that this operation is a valid end statement for a function
   // We also add the ReturnLike trait, indiciating it is the last operation in its block and has no "results"
 
@@ -322,7 +322,7 @@ def BFV_SinkOp : BFV_Op<"sink", [Terminator, ReturnLike]> {
   );
 
   // TODO (Q&A): Using type($x) instead of type(operands) in operation assembly format causes odd error:
-  //  the output will omit the !bfv.ctxt before the <..>
+  //  the output will omit the !ckks.ctxt before the <..>
   let assemblyFormat = [{
     `(` $x`)`  attr-dict `:`  `(` type(operands) `)`
   }];
@@ -330,8 +330,8 @@ def BFV_SinkOp : BFV_Op<"sink", [Terminator, ReturnLike]> {
 }
 
 
-def BFV_MultiplyOp : BFV_Op<"multiply", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
-  // We add InferTypeOpInterface and define LogicalResult bfv::MultiplyOp::inferReturnTypes(...) in BFVDialect.cpp
+def CKKS_MultiplyOp : CKKS_Op<"multiply", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  // We add InferTypeOpInterface and define LogicalResult ckks::MultiplyOp::inferReturnTypes(...) in CKKSDialect.cpp
   // This is necessary, because this operation returns a type that is different from both input types
   // By wrapping InferTypeOpInterface (https://mlir.llvm.org/docs/Interfaces/#utilizing-the-ods-framework)
   // in DeclareOpInterfaceMethods, we don't have to manually add "let extraClassDeclaration = ..."
@@ -349,7 +349,7 @@ def BFV_MultiplyOp : BFV_Op<"multiply", [DeclareOpInterfaceMethods<InferTypeOpIn
 
 }
 
-def BFV_MultiplyManyOp : BFV_Op<"multiply_many", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_MultiplyManyOp : CKKS_Op<"multiply_many", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Multiplication of many values.";
 
@@ -364,7 +364,7 @@ def BFV_MultiplyManyOp : BFV_Op<"multiply_many", [DeclareOpInterfaceMethods<Infe
 
 }
 
-def BFV_MultiplyPlainOp : BFV_Op<"multiply_plain", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_MultiplyPlainOp : CKKS_Op<"multiply_plain", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Ciphertext-Plaintext Multiplication.";
 
@@ -379,7 +379,7 @@ def BFV_MultiplyPlainOp : BFV_Op<"multiply_plain", [DeclareOpInterfaceMethods<In
 
 }
 
-def BFV_AddOp : BFV_Op<"add", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_AddOp : CKKS_Op<"add", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Addition.";
 
@@ -394,7 +394,7 @@ def BFV_AddOp : BFV_Op<"add", [DeclareOpInterfaceMethods<InferTypeOpInterface>]>
 
 }
 
-def BFV_AddManyOp : BFV_Op<"add_many", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_AddManyOp : CKKS_Op<"add_many", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Addition of many values.";
 
@@ -409,7 +409,7 @@ def BFV_AddManyOp : BFV_Op<"add_many", [DeclareOpInterfaceMethods<InferTypeOpInt
 }
 
 
-def BFV_AddPlainOp : BFV_Op<"add_plain",  [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_AddPlainOp : CKKS_Op<"add_plain",  [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Ciphertext-Plaintext Addition.";
 
@@ -424,7 +424,7 @@ def BFV_AddPlainOp : BFV_Op<"add_plain",  [DeclareOpInterfaceMethods<InferTypeOp
 
 }
 
-def BFV_SubOp : BFV_Op<"sub", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_SubOp : CKKS_Op<"sub", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Subtraction.";
 
@@ -439,7 +439,7 @@ def BFV_SubOp : BFV_Op<"sub", [DeclareOpInterfaceMethods<InferTypeOpInterface>]>
 
 }
 
-def BFV_SubPlainOp : BFV_Op<"sub_plain", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_SubPlainOp : CKKS_Op<"sub_plain", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Ciphertext-Plaintext Addition.";
 
@@ -455,7 +455,7 @@ def BFV_SubPlainOp : BFV_Op<"sub_plain", [DeclareOpInterfaceMethods<InferTypeOpI
 }
 
 
-def BFV_ExponentiateOp : BFV_Op<"exponentiate", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_ExponentiateOp : CKKS_Op<"exponentiate", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
   let summary = "Exponentiation.";
 
   let arguments = (ins
@@ -471,7 +471,7 @@ def BFV_ExponentiateOp : BFV_Op<"exponentiate", [DeclareOpInterfaceMethods<Infer
 }
 
 
-def BFV_RelinearizeOp : BFV_Op<"relinearize", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_RelinearizeOp : CKKS_Op<"relinearize", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Relinearization.";
 
@@ -485,7 +485,7 @@ def BFV_RelinearizeOp : BFV_Op<"relinearize", [DeclareOpInterfaceMethods<InferTy
 
 }
 
-def BFV_ModswitchOp : BFV_Op<"modswitch", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_ModswitchOp : CKKS_Op<"modswitch", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Modulus switching.";
 
@@ -500,7 +500,7 @@ def BFV_ModswitchOp : BFV_Op<"modswitch", [DeclareOpInterfaceMethods<InferTypeOp
 
 }
 
-def BFV_ModswitchToOp : BFV_Op<"modswitch_to", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_ModswitchToOp : CKKS_Op<"modswitch_to", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Modulus switching x to target y's level.";
 
@@ -516,7 +516,7 @@ def BFV_ModswitchToOp : BFV_Op<"modswitch_to", [DeclareOpInterfaceMethods<InferT
 }
 
 
-def BFV_ModswitchPlainOp : BFV_Op<"modswitch_plain", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_ModswitchPlainOp : CKKS_Op<"modswitch_plain", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Plaintext Modulus switching.";
 
@@ -532,7 +532,7 @@ def BFV_ModswitchPlainOp : BFV_Op<"modswitch_plain", [DeclareOpInterfaceMethods<
 }
 
 
-def BFV_RotateOp : BFV_Op<"rotate", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def CKKS_RotateOp : CKKS_Op<"rotate", [DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
 
   let summary = "Rotation.";
 
@@ -548,9 +548,9 @@ def BFV_RotateOp : BFV_Op<"rotate", [DeclareOpInterfaceMethods<InferTypeOpInterf
 }
 
 
-def BFV_ConstOp : BFV_Op<"constant", [ConstantLike]> {
+def CKKS_ConstOp : CKKS_Op<"constant", [ConstantLike]> {
 
-  let summary = "BFV constant ciphertext";
+  let summary = "CKKS constant ciphertext";
 
   let summary = "Encrypts a value into a ciphertext.";
 
@@ -567,7 +567,7 @@ def BFV_ConstOp : BFV_Op<"constant", [ConstantLike]> {
   let assemblyFormat = "attr-dict $value `:` type($result)";
 }
 
-def BFV_EncodeOp: BFV_Op<"encode", []> {
+def CKKS_EncodeOp: CKKS_Op<"encode", []> {
   let summary = "Encode standard types to plaintext";
 
   let arguments = (ins AnyType:$input);
@@ -575,7 +575,7 @@ def BFV_EncodeOp: BFV_Op<"encode", []> {
 }
 
 
-def BFV_DecodeOp: BFV_Op<"decode", []> {
+def CKKS_DecodeOp: CKKS_Op<"decode", []> {
   let summary = "Decode plaintext to standard types";
 
   let arguments = (ins Plaintext:$input);
@@ -584,7 +584,7 @@ def BFV_DecodeOp: BFV_Op<"decode", []> {
 
 
 
-def BFV_MaterializeOp: BFV_Op<"materialize", []> {
+def CKKS_MaterializeOp: CKKS_Op<"materialize", []> {
   let summary = "No-op operation used to preserve consistency of type system during type conversion";
 
   let arguments = (ins AnyType:$input);
@@ -595,7 +595,7 @@ def BFV_MaterializeOp: BFV_Op<"materialize", []> {
 
 
 
-def BFV_ExtractOp : BFV_Op<"extract", []> {
+def CKKS_ExtractOp : CKKS_Op<"extract", []> {
 
   let summary = "element extraction operation (actually executing this under FHE is highly inefficient)";
 
@@ -606,7 +606,7 @@ def BFV_ExtractOp : BFV_Op<"extract", []> {
   let hasFolder=1;
 }
 
-def BFV_InsertOp : BFV_Op<"insert", []> {
+def CKKS_InsertOp : CKKS_Op<"insert", []> {
 
   let summary = "element insertion operation (actually executing this under FHE is highly inefficient)";
 
@@ -621,9 +621,8 @@ def BFV_InsertOp : BFV_Op<"insert", []> {
   }];
 }
 
-
 //DeclareOpInterfaceMethods<InferTypeOpInterface> not use
-def BFV_SigmoidOp : BFV_Op<"sigmoid", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+def CKKS_SigmoidOp : CKKS_Op<"sigmoid", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
 
   let summary = "sigmoid.";
 
@@ -638,4 +637,4 @@ def BFV_SigmoidOp : BFV_Op<"sigmoid", [DeclareOpInterfaceMethods<InferTypeOpInte
 }
 
 
-#endif // TOOLCHAIN_BFV_BFV_TD_
+#endif // TOOLCHAIN_CKKS_CKKS_TD_

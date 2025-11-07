@@ -2,6 +2,8 @@
 #include <mlir/InitAllDialects.h>
 #include <mlir/Tools/mlir-lsp-server/MlirLspServerMain.h>
 #include "heco/IR/BFV/BFVDialect.h"
+#include "heco/IR/CKKS/CKKSDialect.h"
+#include "heco/IR/BGV/BGVDialect.h"
 #include "heco/IR/FHE/FHEDialect.h"
 #include "heco/IR/EVA/EVADialect.h"
 #include "heco/IR/Poly/PolyDialect.h"
@@ -14,6 +16,8 @@ int main(int argc, char **argv)
     //  (e.g., via some CMake and/or TableGen magic)
     registry.insert<heco::fhe::FHEDialect>();
     registry.insert<heco::bfv::BFVDialect>();
+    registry.insert<heco::ckks::CKKSDialect>();
+    registry.insert<heco::bgv::BGVDialect>();
     registry.insert<heco::eva::EVADialect>();
     registry.insert<heco::poly::PolyDialect>();
     registerAllDialects(registry);
