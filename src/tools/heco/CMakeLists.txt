@@ -45,6 +45,7 @@ set(LIBS
         HECOMarkMetadata
         HECOLazyModswitch
         HECOCatchAll
+        HECOInsertBootstrap
         )
 add_llvm_executable(heco heco.cpp)
 

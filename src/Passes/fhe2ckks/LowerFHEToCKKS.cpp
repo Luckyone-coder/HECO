@@ -260,8 +260,7 @@ public:
             if (op->getNumOperands() > 2)
                 rewriter.replaceOpWithNewOp<ckks::AddManyOp>(op, TypeRange(dstType), materialized_operands);
             else
-                rewriter.replaceOpWithNewOp<ckks::AddOp>(op, TypeRange(dstType), materiali
-            zed_operands);
+                rewriter.replaceOpWithNewOp<ckks::AddOp>(op, TypeRange(dstType), materialized_operands);
             return success();
         }
         // 减法操作

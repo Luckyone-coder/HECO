@@ -39,6 +39,7 @@
 #include "heco/Passes/hir2hir/ScalarBatching.h"
 #include "heco/Passes/hir2hir/Tensor2BatchedSecret.h"
 #include "heco/Passes/hir2hir/UnrollLoops.h"
+#include "heco/Passes/insertbootstrap/InsertBootstrap.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/SourceMgr.h"
@@ -206,6 +207,9 @@ void CKKSopenfhePipelineBuilder(OpPassManager &manager)
     manager.addPass(createCanonicalizerPass());
     manager.addPass(createCSEPass());
 
+    // Insert bootstrap operations when CKKS multiplicative depth is insufficient
+    manager.addPass(std::make_unique<InsertBootstrapPass>());
+    manager.addPass(createCanonicalizerPass());
 
     manager.addPass(std::make_unique<LowerCKKSToEmitCOpenFHEPass>());
     manager.addPass(createCanonicalizerPass()); // necessary to remove redundant fhe.materialize
@@ -373,6 +377,7 @@ int main(int argc, char **argv)
     PassRegistration<InternalOperandBatchingPass>();
     PassRegistration<ScalarBatchingPass>();
     PassRegistration<LowerVirtualPass>();
+    PassRegistration<InsertBootstrapPass>();
     PassRegistration<LowerFHEToBFVPass>();
     PassRegistration<LowerFHEToCKKSPass>();
     PassRegistration<LowerFHEToBGVPass>();
