@@ -636,5 +636,18 @@ def CKKS_SigmoidOp : CKKS_Op<"sigmoid", [DeclareOpInterfaceMethods<InferTypeOpIn
 
 }
 
+def CKKS_BootstrapOp : CKKS_Op<"bootstrap", []> {
+  let summary = "Bootstrap operation to refresh ciphertext multiplicative depth";
+  
+  let description = [{
+    Refreshes a ciphertext to restore its multiplicative depth to a fresh level,
+    allowing further homomorphic operations. This is a computationally expensive
+    operation that should be minimized.
+  }];
+  
+  let arguments = (ins Ciphertext:$x);
+  let results = (outs Ciphertext:$output);
+}
+
 
 #endif // TOOLCHAIN_CKKS_CKKS_TD_

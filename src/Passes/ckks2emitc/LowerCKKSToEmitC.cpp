@@ -287,6 +287,8 @@ public:
             op_str = "modswitch_to";
         else if (std::is_same<OpType, ckks::SigmoidOp>())
             op_str = "sigmoid";
+        else if (std::is_same<OpType, ckks::BootstrapOp>())
+            op_str = "bootstrap";
         else
             return failure();
 
@@ -621,7 +623,7 @@ void LowerCKKSToEmitCPass::runOnOperation()
         CKKSEmitCBasicPattern<ckks::SubOp>, CKKSEmitCBasicPattern<ckks::SubPlainOp>, CKKSEmitCBasicPattern<ckks::AddOp>,
         CKKSEmitCBasicPattern<ckks::AddPlainOp>, CKKSEmitCBasicPattern<ckks::AddManyOp>, CKKSEmitCBasicPattern<ckks::MultiplyOp>,
         CKKSEmitCBasicPattern<ckks::MultiplyPlainOp>, CKKSEmitCBasicPattern<ckks::MultiplyManyOp>,CKKSEmitCBasicPattern<ckks::SigmoidOp>,
-        CKKSEmitCBasicPattern<ckks::ModswitchToOp>, CKKSEmitCLoadPattern<ckks::LoadCtxtOp>, CKKSEmitCLoadPattern<ckks::LoadPtxtOp>,
+        CKKSEmitCBasicPattern<ckks::ModswitchToOp>, CKKSEmitCBasicPattern<ckks::BootstrapOp>, CKKSEmitCLoadPattern<ckks::LoadCtxtOp>, CKKSEmitCLoadPattern<ckks::LoadPtxtOp>,
         CKKSEmitCLoadPattern<ckks::LoadPublicKeyOp>, CKKSEmitCLoadPattern<ckks::LoadRelinKeysOp>,
         CKKSEmitCLoadPattern<ckks::LoadGaloisKeysOp>, CKKSEmitCRelinPattern, CKKSEmitCRotatePattern, CKKSEmitCEncodePattern,
         CKKSEmitCDecodePattern, CKKSEmitCSinkPattern, CKKSFunctionConversionPattern, CKKSEmitCReturnPattern>(
