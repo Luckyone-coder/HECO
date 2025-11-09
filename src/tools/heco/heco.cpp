@@ -323,6 +323,21 @@ void fheParamsBuilder(OpPassManager &manager)
     manager.addPass(std::make_unique<createParamsPass>());
 }
 
+void BootstrapBuilder(OpPassManager &manager)
+{
+    manager.addPass(std::make_unique<LowerFHEToCKKSPass>());
+    manager.addPass(createCanonicalizerPass());
+    manager.addPass(createCSEPass());
+
+    manager.addPass(std::make_unique<InsertBootstrapPass>());
+    manager.addPass(createCanonicalizerPass());
+    manager.addPass(createCSEPass());
+
+    manager.addPass(std::make_unique<LowerCKKSToEmitCPass>());
+    manager.addPass(createCanonicalizerPass()); // necessary to remove redundant fhe.materialize
+    manager.addPass(createCSEPass());
+}
+
 int main(int argc, char **argv)
 {
     mlir::MLIRContext context;
@@ -406,6 +421,7 @@ int main(int argc, char **argv)
     PassPipelineRegistration<>("bgvopenfhe-pass", "Run passes using bgv OpenFHE", BGVopenfhePipelineBuilder);
     PassPipelineRegistration<>("fhe-pass", "Run FHE-level passes", fhePipelineBuilder);
     PassPipelineRegistration<>("params-pass", "Run FHE-level passes", fheParamsBuilder);
+    PassPipelineRegistration<>("boot-pass", "Run FHE-level passes", BootstrapBuilder);
 
     return asMainReturnCode(MlirOptMain(argc, argv, "HECO optimizer\n", registry));
 }

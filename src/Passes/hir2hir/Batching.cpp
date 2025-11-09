@@ -98,6 +98,30 @@ LogicalResult batchArithmeticOperation(IRRewriter &rewriter, MLIRContext *contex
             {
                 target_slot = 0; // sigmoid 输出标量时，默认槽位 0
                 break;
+            }else if (auto conv_op = dyn_cast_or_null<fhe::ConvOp>(u))
+            {
+                target_slot = 0; // conv 输出标量时，默认槽位 0
+                break;
+            }else if (auto relu_op = dyn_cast_or_null<fhe::ReluOp>(u))
+            {
+                target_slot = 0; // relu 输出标量时，默认槽位 0
+                break;
+            }else if (auto pool_op = dyn_cast_or_null<fhe::PoolOp>(u))
+            {
+                target_slot = 0; // pool 输出标量时，默认槽位 0
+                break;
+            }else if (auto flatten_op = dyn_cast_or_null<fhe::FlattenOp>(u))
+            {
+                target_slot = 0; // flatten 输出标量时，默认槽位 0
+                break;
+            }else if (auto fc_op = dyn_cast_or_null<fhe::FcOp>(u))
+            {
+                target_slot = 0; // fc 输出标量时，默认槽位 0
+                break;
+            }else if (auto softmax_op = dyn_cast_or_null<fhe::SoftmaxOp>(u))
+            {
+                target_slot = 0; // softmax 输出标量时，默认槽位 0
+                break;
             }
         }
 

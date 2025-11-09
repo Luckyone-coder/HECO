@@ -275,6 +275,42 @@ public:
             rewriter.replaceOpWithNewOp<ckks::SigmoidOp>(op, TypeRange(dstType), materialized_operands);
             return success();
         }
+        // Conv
+        else if (std::is_same<OpType, fhe::ConvOp>())
+        {
+            rewriter.replaceOpWithNewOp<ckks::ConvOp>(op, TypeRange(dstType), materialized_operands);
+            return success();
+        }
+        // Relu
+        else if (std::is_same<OpType, fhe::ReluOp>())
+        {
+            rewriter.replaceOpWithNewOp<ckks::ReluOp>(op, TypeRange(dstType), materialized_operands);
+            return success();
+        }
+        // Pool
+        else if (std::is_same<OpType, fhe::PoolOp>())
+        {
+            rewriter.replaceOpWithNewOp<ckks::PoolOp>(op, TypeRange(dstType), materialized_operands);
+            return success();
+        }
+        // Flatten
+        else if (std::is_same<OpType, fhe::FlattenOp>())
+        {
+            rewriter.replaceOpWithNewOp<ckks::FlattenOp>(op, TypeRange(dstType), materialized_operands);
+            return success();
+        }
+        // Fc
+        else if (std::is_same<OpType, fhe::FcOp>())
+        {
+            rewriter.replaceOpWithNewOp<ckks::FcOp>(op, TypeRange(dstType), materialized_operands);
+            return success();
+        }
+        // Softmax
+        else if (std::is_same<OpType, fhe::SoftmaxOp>())
+        {
+            rewriter.replaceOpWithNewOp<ckks::SoftmaxOp>(op, TypeRange(dstType), materialized_operands);
+            return success();
+        }
         // 乘法操作
         else if (std::is_same<OpType, fhe::MultiplyOp>())
         {
@@ -505,7 +541,8 @@ void LowerFHEToCKKSPass::runOnOperation()
 
     patterns.add<
         CKKSFunctionConversionPattern, CKKSReturnPattern, CKKSBasicPattern<fhe::AddOp>,
-        CKKSBasicPattern<fhe::SubOp>, CKKSBasicPattern<fhe::MultiplyOp>, CKKSRotatePattern, CKKSConstPattern,CKKSBasicPattern<fhe::SigmoidOp>,
+        CKKSBasicPattern<fhe::SubOp>, CKKSBasicPattern<fhe::MultiplyOp>, CKKSRotatePattern, CKKSConstPattern,CKKSBasicPattern<fhe::SigmoidOp>, CKKSConstPattern,CKKSBasicPattern<fhe::ConvOp>,
+        CKKSBasicPattern<fhe::ReluOp>, CKKSBasicPattern<fhe::PoolOp>, CKKSBasicPattern<fhe::FlattenOp>, CKKSBasicPattern<fhe::FcOp>, CKKSBasicPattern<fhe::SoftmaxOp>,
         CKKSMaterializePattern, CKKSInsertPattern, CKKSExtractPattern>(type_converter, patterns.getContext());
 
     if (mlir::failed(mlir::applyPartialConversion(getOperation(), target, std::move(patterns))))

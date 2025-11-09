@@ -199,7 +199,7 @@ class CKKS_Op<string mnemonic, list<Trait> traits = []> :
 // while the corresponding C++ classes will be <dialect_namespace>::<OperationName>
 // In fact, the string before the "_" can be anything we want
 // (See https://github.com/llvm/llvm-project/blob/02b6fb218e44490f3ea1597e35df1b1b66c6b869/mlir/lib/TableGen/Operator.cpp#L40-L43 )
-// However, it is good practice to make it <DIALECT>. Similarily, the "Op" at the end is a convention, not a requirement.
+// However, it is good practice to make it <DIALECT>. Similarily, the "Op" at the end is a flattenention, not a requirement.
 
 def CKKS_LoadCtxtOp : CKKS_Op<"load_ctxt", []> {
   let summary = "Loads ciphertext.";
@@ -585,7 +585,7 @@ def CKKS_DecodeOp: CKKS_Op<"decode", []> {
 
 
 def CKKS_MaterializeOp: CKKS_Op<"materialize", []> {
-  let summary = "No-op operation used to preserve consistency of type system during type conversion";
+  let summary = "No-op operation used to preserve consistency of type system during type flattenersion";
 
   let arguments = (ins AnyType:$input);
   let results = (outs AnyType:$result);
@@ -649,5 +649,92 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", []> {
   let results = (outs Ciphertext:$output);
 }
 
+def CKKS_ConvOp : CKKS_Op<"conv", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
 
+  let summary = "conv.";
+
+  let arguments = (ins
+    Ciphertext:$x,
+    Ciphertext:$y,
+    Ciphertext:$z,
+    Plaintext:$conv_k);
+
+  let results = (outs
+    Ciphertext:$output
+  );
+
+}
+
+def CKKS_ReluOp : CKKS_Op<"relu", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+
+  let summary = "relu.";
+
+  let arguments = (ins
+    Ciphertext:$x
+);
+
+  let results = (outs
+    Ciphertext:$output
+  );
+
+}
+
+def CKKS_PoolOp : CKKS_Op<"pool", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+
+  let summary = "pool.";
+
+  let arguments = (ins
+    Ciphertext:$x,
+    Plaintext:$pool_k
+);
+
+  let results = (outs
+    Ciphertext:$output
+  );
+
+}
+
+
+def CKKS_FlattenOp : CKKS_Op<"flatten", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+
+  let summary = "flatten.";
+
+  let arguments = (ins
+    Ciphertext:$x
+);
+
+  let results = (outs
+    Ciphertext:$output
+  );
+
+}
+
+def CKKS_FcOp : CKKS_Op<"fc", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+
+  let summary = "fc.";
+
+  let arguments = (ins
+    Ciphertext:$x,
+    Ciphertext:$y,
+    Ciphertext:$z);
+
+  let results = (outs
+    Ciphertext:$output
+  );
+
+}
+
+def CKKS_SoftmaxOp : CKKS_Op<"softmax", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+
+  let summary = "softmax.";
+
+  let arguments = (ins
+    Ciphertext:$x
+);
+
+  let results = (outs
+    Ciphertext:$output
+  );
+
+}
 #endif // TOOLCHAIN_CKKS_CKKS_TD_

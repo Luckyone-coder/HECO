@@ -313,4 +313,58 @@ def FHE_SigmoidOp: FHE_Op<"sigmoid", [AllTypesMatch<["x","output"]>]> {
 
 }
 
+// 卷积操作
+def FHE_ConvOp : FHE_Op<"conv", []> {
+  let summary = "Convolution";
+  let arguments = (ins
+    AnyTypeOf<[Secret,BatchedSecret]>:$x,
+    AnyType:$weights,
+    AnyType:$bias,
+    AnyType:$conv_k
+  );
+  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+}
+
+// ReLU激活函数
+def FHE_ReluOp : FHE_Op<"relu", [AllTypesMatch<["x","output"]>]> {
+  let summary = "ReLU activation";
+  let arguments = (ins AnyTypeOf<[Secret,BatchedSecret]>:$x);
+  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+}
+
+// 池化操作
+def FHE_PoolOp : FHE_Op<"pool", []> {
+  let summary = "Pooling";
+  let arguments = (ins 
+    AnyTypeOf<[Secret,BatchedSecret]>:$x,
+    AnyType:$pool_k
+  );
+  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+}
+
+// 展平操作
+def FHE_FlattenOp : FHE_Op<"flatten", [AllTypesMatch<["x","output"]>]> {
+  let summary = "Flatten";
+  let arguments = (ins AnyTypeOf<[Secret,BatchedSecret]>:$x);
+  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+}
+
+// 全连接层
+def FHE_FcOp : FHE_Op<"fc", []> {
+  let summary = "Fully connected layer";
+  let arguments = (ins
+    AnyTypeOf<[Secret,BatchedSecret]>:$x,
+    AnyType:$weights,
+    AnyType:$bias
+  );
+  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+}
+
+// Softmax激活函数
+def FHE_SoftmaxOp : FHE_Op<"softmax", [AllTypesMatch<["x","output"]>]> {
+  let summary = "Softmax activation";
+  let arguments = (ins AnyTypeOf<[Secret,BatchedSecret]>:$x);
+  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+}
+
 #endif // ABC_FHE_FHE_TD_

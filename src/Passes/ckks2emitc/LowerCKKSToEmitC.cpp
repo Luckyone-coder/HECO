@@ -287,6 +287,18 @@ public:
             op_str = "modswitch_to";
         else if (std::is_same<OpType, ckks::SigmoidOp>())
             op_str = "sigmoid";
+        else if (std::is_same<OpType, ckks::ConvOp>())
+            op_str = "conv";
+        else if (std::is_same<OpType, ckks::ReluOp>())
+            op_str = "relu";
+        else if (std::is_same<OpType, ckks::PoolOp>())
+            op_str = "pool";
+        else if (std::is_same<OpType, ckks::FlattenOp>())
+            op_str = "flatten";
+        else if (std::is_same<OpType, ckks::FcOp>())
+            op_str = "fc";
+        else if (std::is_same<OpType, ckks::SoftmaxOp>())
+            op_str = "softmax";
         else if (std::is_same<OpType, ckks::BootstrapOp>())
             op_str = "bootstrap";
         else
@@ -623,6 +635,8 @@ void LowerCKKSToEmitCPass::runOnOperation()
         CKKSEmitCBasicPattern<ckks::SubOp>, CKKSEmitCBasicPattern<ckks::SubPlainOp>, CKKSEmitCBasicPattern<ckks::AddOp>,
         CKKSEmitCBasicPattern<ckks::AddPlainOp>, CKKSEmitCBasicPattern<ckks::AddManyOp>, CKKSEmitCBasicPattern<ckks::MultiplyOp>,
         CKKSEmitCBasicPattern<ckks::MultiplyPlainOp>, CKKSEmitCBasicPattern<ckks::MultiplyManyOp>,CKKSEmitCBasicPattern<ckks::SigmoidOp>,
+        CKKSEmitCBasicPattern<ckks::ConvOp>, CKKSEmitCBasicPattern<ckks::ReluOp>, CKKSEmitCBasicPattern<ckks::PoolOp>,
+        CKKSEmitCBasicPattern<ckks::FlattenOp>, CKKSEmitCBasicPattern<ckks::FcOp>, CKKSEmitCBasicPattern<ckks::SoftmaxOp>,
         CKKSEmitCBasicPattern<ckks::ModswitchToOp>, CKKSEmitCBasicPattern<ckks::BootstrapOp>, CKKSEmitCLoadPattern<ckks::LoadCtxtOp>, CKKSEmitCLoadPattern<ckks::LoadPtxtOp>,
         CKKSEmitCLoadPattern<ckks::LoadPublicKeyOp>, CKKSEmitCLoadPattern<ckks::LoadRelinKeysOp>,
         CKKSEmitCLoadPattern<ckks::LoadGaloisKeysOp>, CKKSEmitCRelinPattern, CKKSEmitCRotatePattern, CKKSEmitCEncodePattern,

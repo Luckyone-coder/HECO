@@ -104,6 +104,87 @@ using namespace ckks;
     return ::mlir::success();
 }
 
+::mlir::LogicalResult ckks::ConvOp::inferReturnTypes(
+    ::mlir::MLIRContext *context, ::std::optional<::mlir::Location> location, ::mlir::ValueRange operands,
+    ::mlir::DictionaryAttr attributes, ::mlir::OpaqueProperties properties, ::mlir::RegionRange regions,
+    ::llvm::SmallVectorImpl<::mlir::Type> &inferredReturnTypes)
+{
+    auto op = ConvOpAdaptor(operands, attributes, properties, regions);
+    CiphertextType type_x = op.getX().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_y = op.getY().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_z = op.getZ().getType().dyn_cast<CiphertextType>();
+    //CiphertextType type_conv_k = op.getConvK().getType().dyn_cast<CiphertextType>();
+    auto size = type_x.getSize();
+      inferredReturnTypes.push_back(CiphertextType::get(context, size, type_x.getElementType()));
+    return ::mlir::success();
+}
+
+::mlir::LogicalResult ckks::ReluOp::inferReturnTypes(
+    ::mlir::MLIRContext *context, ::std::optional<::mlir::Location> location, ::mlir::ValueRange operands,
+    ::mlir::DictionaryAttr attributes, ::mlir::OpaqueProperties properties, ::mlir::RegionRange regions,
+    ::llvm::SmallVectorImpl<::mlir::Type> &inferredReturnTypes)
+{
+    auto op = AddOpAdaptor(operands, attributes, properties, regions);
+    CiphertextType type_x = op.getX().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_y = op.getY().getType().dyn_cast<CiphertextType>();
+    auto size = type_x.getSize();
+      inferredReturnTypes.push_back(CiphertextType::get(context, size, type_x.getElementType()));
+    return ::mlir::success();
+}
+
+::mlir::LogicalResult ckks::PoolOp::inferReturnTypes(
+    ::mlir::MLIRContext *context, ::std::optional<::mlir::Location> location, ::mlir::ValueRange operands,
+    ::mlir::DictionaryAttr attributes, ::mlir::OpaqueProperties properties, ::mlir::RegionRange regions,
+    ::llvm::SmallVectorImpl<::mlir::Type> &inferredReturnTypes)
+{
+    auto op = AddOpAdaptor(operands, attributes, properties, regions);
+    CiphertextType type_x = op.getX().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_y = op.getY().getType().dyn_cast<CiphertextType>();
+    auto size = type_x.getSize();
+      inferredReturnTypes.push_back(CiphertextType::get(context, size, type_x.getElementType()));
+    return ::mlir::success();
+}
+
+::mlir::LogicalResult ckks::FlattenOp::inferReturnTypes(
+    ::mlir::MLIRContext *context, ::std::optional<::mlir::Location> location, ::mlir::ValueRange operands,
+    ::mlir::DictionaryAttr attributes, ::mlir::OpaqueProperties properties, ::mlir::RegionRange regions,
+    ::llvm::SmallVectorImpl<::mlir::Type> &inferredReturnTypes)
+{
+    auto op = AddOpAdaptor(operands, attributes, properties, regions);
+    CiphertextType type_x = op.getX().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_y = op.getY().getType().dyn_cast<CiphertextType>();
+    auto size = type_x.getSize();
+      inferredReturnTypes.push_back(CiphertextType::get(context, size, type_x.getElementType()));
+    return ::mlir::success();
+}
+
+::mlir::LogicalResult ckks::FcOp::inferReturnTypes(
+    ::mlir::MLIRContext *context, ::std::optional<::mlir::Location> location, ::mlir::ValueRange operands,
+    ::mlir::DictionaryAttr attributes, ::mlir::OpaqueProperties properties, ::mlir::RegionRange regions,
+    ::llvm::SmallVectorImpl<::mlir::Type> &inferredReturnTypes)
+{
+    auto op = FcOpAdaptor(operands, attributes, properties, regions);
+    CiphertextType type_x = op.getX().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_y = op.getY().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_z = op.getZ().getType().dyn_cast<CiphertextType>();
+    auto size = type_x.getSize();
+      inferredReturnTypes.push_back(CiphertextType::get(context, size, type_x.getElementType()));
+    return ::mlir::success();
+}
+
+::mlir::LogicalResult ckks::SoftmaxOp::inferReturnTypes(
+    ::mlir::MLIRContext *context, ::std::optional<::mlir::Location> location, ::mlir::ValueRange operands,
+    ::mlir::DictionaryAttr attributes, ::mlir::OpaqueProperties properties, ::mlir::RegionRange regions,
+    ::llvm::SmallVectorImpl<::mlir::Type> &inferredReturnTypes)
+{
+    auto op = AddOpAdaptor(operands, attributes, properties, regions);
+    CiphertextType type_x = op.getX().getType().dyn_cast<CiphertextType>();
+    CiphertextType type_y = op.getY().getType().dyn_cast<CiphertextType>();
+    auto size = type_x.getSize();
+      inferredReturnTypes.push_back(CiphertextType::get(context, size, type_x.getElementType()));
+    return ::mlir::success();
+}
+
 ::mlir::LogicalResult ckks::AddManyOp::inferReturnTypes(
     ::mlir::MLIRContext *context, ::std::optional<::mlir::Location> location, ::mlir::ValueRange operands,
     ::mlir::DictionaryAttr attributes, ::mlir::OpaqueProperties properties, ::mlir::RegionRange regions,
