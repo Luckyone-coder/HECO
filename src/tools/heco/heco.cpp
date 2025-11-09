@@ -325,6 +325,29 @@ void fheParamsBuilder(OpPassManager &manager)
 
 void BootstrapBuilder(OpPassManager &manager)
 {
+    manager.addPass(std::make_unique<UnrollLoopsPass>());
+    manager.addPass(createCanonicalizerPass());
+    manager.addPass(createCSEPass()); // this can greatly reduce the number of operations after unrolling
+    manager.addPass(std::make_unique<NaryPass>());
+
+    // Must canonicalize before Tensor2BatchedSecretPass, since it only handles constant indices in tensor.extract
+    manager.addPass(createCanonicalizerPass());
+    manager.addPass(std::make_unique<Tensor2BatchedSecretPass>());
+    manager.addPass(createCanonicalizerPass()); // necessary to remove redundant fhe.materialize
+    manager.addPass(createCSEPass()); // necessary to remove duplicate fhe.extract
+
+    manager.addPass(std::make_unique<BatchingPass>());
+    manager.addPass(createCanonicalizerPass());
+    manager.addPass(
+        createCSEPass()); // try and remove all the redundant rotates, in the hope it also gives us less combine ops?
+    manager.addPass(std::make_unique<CombineSimplifyPass>());
+    manager.addPass(createCSEPass()); // otherwise, the internal batching pass has no "same origin" things to find!
+    manager.addPass(createCanonicalizerPass());
+
+    manager.addPass(std::make_unique<InternalOperandBatchingPass>());
+    manager.addPass(createCanonicalizerPass());
+    manager.addPass(createCSEPass());
+    
     manager.addPass(std::make_unique<LowerFHEToCKKSPass>());
     manager.addPass(createCanonicalizerPass());
     manager.addPass(createCSEPass());

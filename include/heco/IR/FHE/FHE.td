@@ -11,6 +11,7 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/OpAsmInterface.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Dialect/Tensor/IR/TensorBase.td"
 
 
 // This is a TableGen file, using ODS (https://mlir.llvm.org/docs/OpDefinitions/) to define a dialect, its types and its operations.
@@ -310,61 +311,55 @@ def FHE_SigmoidOp: FHE_Op<"sigmoid", [AllTypesMatch<["x","output"]>]> {
   let results = (outs
     AnyTypeOf<[Secret,BatchedSecret]>:$output
   );
-
 }
 
-// 卷积操作
 def FHE_ConvOp : FHE_Op<"conv", []> {
-  let summary = "Convolution";
+  let summary = "Convolution operation";
   let arguments = (ins
-    AnyTypeOf<[Secret,BatchedSecret]>:$x,
-    AnyType:$weights,
-    AnyType:$bias,
-    AnyType:$conv_k
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$input,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$weight,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$bias,
+    I16:$kernel
   );
-  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+  let results = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$result);
 }
 
-// ReLU激活函数
-def FHE_ReluOp : FHE_Op<"relu", [AllTypesMatch<["x","output"]>]> {
-  let summary = "ReLU activation";
-  let arguments = (ins AnyTypeOf<[Secret,BatchedSecret]>:$x);
-  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+
+def FHE_ReluOp : FHE_Op<"relu", []> {
+  let summary = "Relu operation";
+  let arguments = (ins AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$x);
+  let results   = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$output);
 }
 
-// 池化操作
+
 def FHE_PoolOp : FHE_Op<"pool", []> {
-  let summary = "Pooling";
-  let arguments = (ins 
-    AnyTypeOf<[Secret,BatchedSecret]>:$x,
-    AnyType:$pool_k
-  );
-  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+  let summary = "Pooling operation";
+  let arguments = (ins AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$x, I16:$kernel);
+  let results   = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$output);
 }
 
-// 展平操作
-def FHE_FlattenOp : FHE_Op<"flatten", [AllTypesMatch<["x","output"]>]> {
-  let summary = "Flatten";
-  let arguments = (ins AnyTypeOf<[Secret,BatchedSecret]>:$x);
-  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+
+def FHE_FlattenOp : FHE_Op<"flatten", []> {
+  let summary = "Flatten operation";
+  let arguments = (ins AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$x);
+  let results   = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$output);
 }
 
-// 全连接层
 def FHE_FcOp : FHE_Op<"fc", []> {
-  let summary = "Fully connected layer";
+  let summary = "Fully connected operation";
   let arguments = (ins
-    AnyTypeOf<[Secret,BatchedSecret]>:$x,
-    AnyType:$weights,
-    AnyType:$bias
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$input,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$weight,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$bias
   );
-  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+  let results   = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$result);
 }
 
-// Softmax激活函数
-def FHE_SoftmaxOp : FHE_Op<"softmax", [AllTypesMatch<["x","output"]>]> {
-  let summary = "Softmax activation";
-  let arguments = (ins AnyTypeOf<[Secret,BatchedSecret]>:$x);
-  let results = (outs AnyTypeOf<[Secret,BatchedSecret]>:$output);
+def FHE_SoftmaxOp : FHE_Op<"softmax", []> {
+  let summary = "Softmax operation";
+  let arguments = (ins AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$x);
+  let results   = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$output);
 }
+
 
 #endif // ABC_FHE_FHE_TD_
