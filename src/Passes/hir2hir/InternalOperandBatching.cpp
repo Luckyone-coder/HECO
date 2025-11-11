@@ -1,4 +1,3 @@
-
 #include "heco/Passes/hir2hir/InternalOperandBatching.h"
 #include "heco/IR/FHE/FHEDialect.h"
 #include "llvm/ADT/APSInt.h"
@@ -7,16 +6,13 @@
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Transforms/DialectConversion.h"
-
 using namespace mlir;
 using namespace heco;
-
 void InternalOperandBatchingPass::getDependentDialects(mlir::DialectRegistry &registry) const
 {
     registry
         .insert<fhe::FHEDialect, affine::AffineDialect, func::FuncDialect, scf::SCFDialect, tensor::TensorDialect>();
 }
-
 template <typename OpType>
 LogicalResult internalBatchArithmeticOperation(
     IRRewriter &rewriter, MLIRContext *context, OpType op, Value use, int target_slot)
@@ -24,12 +20,10 @@ LogicalResult internalBatchArithmeticOperation(
     if (auto result_bst = op.getType().template dyn_cast_or_null<fhe::BatchedSecretType>())
     {
         auto slot_count = result_bst.getSize();
-
         // llvm::outs() << "Attempting Internal Batching (slout_count = " << slot_count
-        //              << ", target_slot = " << target_slot << ") for ";
+        // << ", target_slot = " << target_slot << ") for ";
         // op.print(llvm::outs());
         // llvm::outs() << "\n";
-
         /// Helper Struct for uses
         struct BatchingUse
         {
@@ -37,18 +31,15 @@ LogicalResult internalBatchArithmeticOperation(
             Value occurrence;
             BatchingUse(int index, Value occurrence) : index(index), occurrence(occurrence){};
         };
-
         /// List of used (Batched type) operand inputs' origins and the indices accessed in each one
         typedef llvm::SmallMapVector<Value, std::vector<BatchingUse>, 1> OriginMap;
         OriginMap originMap;
-
         auto addOriginUse = [&](Value o, int index, Value occurrence) {
             if (originMap.find(o) != originMap.end())
                 originMap.find(o)->second.push_back(BatchingUse(index, occurrence));
             else
                 originMap.insert({ o, { BatchingUse(index, occurrence) } });
         };
-
         // collect origin information
         for (auto it = op->operand_begin(); it != op.operand_end(); ++it)
         {
@@ -75,38 +66,33 @@ LogicalResult internalBatchArithmeticOperation(
                 addOriginUse(*it, -1, *it);
             }
         }
-
         // for (auto el : originMap)
         // {
-        //     std::sort(el.second.begin(), el.second.end(), [](const BatchingUse &a, const BatchingUse &b) -> bool {
-        //         return a.index < b.index;
-        //     });
+        // std::sort(el.second.begin(), el.second.end(), [](const BatchingUse &a, const BatchingUse &b) -> bool {
+        // return a.index < b.index;
+        // });
         //
-        //     llvm::outs() << "\t\tindices of ";
-        //     el.first.print(llvm::outs());
-        //     llvm::outs() << " : ";
-        //     for (auto i : el.second)
-        //     {
-        //         llvm::outs() << i.index << ", ";
-        //     }
-        //     llvm::outs() << '\n';
+        // llvm::outs() << "\t\tindices of ";
+        // el.first.print(llvm::outs());
+        // llvm::outs() << " : ";
+        // for (auto i : el.second)
+        // {
+        // llvm::outs() << i.index << ", ";
         // }
-
+        // llvm::outs() << '\n';
+        // }
         for (auto el : originMap)
         {
             auto origin = el.first;
-
             // llvm::outs() << "\tTrying to combine occurences of indices from: ";
             // origin.print(llvm::outs());
             // llvm::outs() << '\n';
-
             // Check if its the indices form a contiguos block
             // Based on https://stackoverflow.com/a/73081678/2227414 extended to conesecutive number check
             std::sort(el.second.begin(), el.second.end(), [](const BatchingUse &a, const BatchingUse &b) -> bool {
                 return a.index < b.index;
             });
-
-            int counter = 1;
+            size_t counter = 1;
             int last_slot = -1;
             for (size_t i = 0; i < 2 * el.second.size() && counter < el.second.size(); ++i)
             {
@@ -115,50 +101,42 @@ LogicalResult internalBatchArithmeticOperation(
                 // llvm::outs() << "\t\t\tcur+1: " << cur_plus_one << ", next: " << next;
                 counter = cur_plus_one == next ? counter + 1 : 1;
                 // llvm::outs() << " counter: " << counter << "\n";
-                last_slot = i;
+                last_slot = static_cast<int>(i);
             }
-
             bool contiguous = !el.second.empty() && el.second.size() > 1 && counter == el.second.size();
             // if (!contiguous)
             // {
-            //     llvm::outs() << "\t\tIgnoring because of non-contiguous indices. \n";
+            // llvm::outs() << "\t\tIgnoring because of non-contiguous indices. \n";
             // }
-
             // Check if it's a power of two
             auto n = el.second.size();
-            auto k = std::log2(n);
-            bool power_of_two = (k == (int)k);
-
+            auto k = std::log2(static_cast<double>(n));
+            bool power_of_two = (k == static_cast<int>(k));
             // if (!power_of_two)
             // {
-            //     llvm::outs() << "\t\tIgnoring because its not a power of two.\n";
+            // llvm::outs() << "\t\tIgnoring because its not a power of two.\n";
             // }
-
             if (contiguous && power_of_two)
             {
                 // llvm::outs() << "\t\tApplying rotate-and-sum! \n";
-
                 // The current implementation simply rotates everything to last_slot
                 // then rotates that to target_slot
                 // TODO: There are two possible optimizations of this rotate-and-sum implementation:
-                //       1.) When the target slot falls within the contigous range, we should rotate there
-                //       2.) When the target slot falls outside the contigous range,
-                //           but there is a slot in the range that is a power-of-two distance away from the target slot,
-                //           we should rotate to that slot, since the final rotation will be cheaper (non-composite)
-
+                // 1.) When the target slot falls within the contigous range, we should rotate there
+                // 2.) When the target slot falls outside the contigous range,
+                // but there is a slot in the range that is a power-of-two distance away from the target slot,
+                // we should rotate to that slot, since the final rotation will be cheaper (non-composite)
                 rewriter.setInsertionPoint(op);
                 Value prev = origin;
                 Value added;
-                for (int i = n / 2; i > 0; i /= 2)
+                for (int i = static_cast<int>(n) / 2; i > 0; i /= 2)
                 {
                     auto rotated_down = rewriter.template create<fhe::RotateOp>(op.getLoc(), prev, i);
                     added = rewriter.template create<fhe::AddOp>(op.getLoc(), ValueRange({ prev, rotated_down }));
                     prev = added;
                 }
-
                 // now rotate to the target slot
                 added = rewriter.template create<fhe::RotateOp>(op.getLoc(), added, last_slot - target_slot);
-
                 // Now we need to replace ONE OF the operands that have this origin with "added" and REMOVE THE REST
                 auto old_range = op.getX();
                 SmallVector<Value> new_range = {};
@@ -174,11 +152,9 @@ LogicalResult internalBatchArithmeticOperation(
                         new_range.push_back(v);
                 }
                 new_range.push_back(added);
-
                 // TODO: This is probably all kinds of unsafe if there are multiple origins that are being replaced
                 // in the same op
                 op.getXMutable().assign(new_range);
-
                 // llvm::outs() << "current function: ";
                 // op->getParentOp()->print(llvm::outs());
                 // llvm::outs() << '\n';
@@ -187,19 +163,111 @@ LogicalResult internalBatchArithmeticOperation(
     }
     // else
     // {
-    //     llvm::outs() << "Ignoring Internal Batching (target_slot = " << target_slot << ") for ";
-    //     op.print(llvm::outs());
-    //     llvm::outs() << " because it's return type is not BatchedSecret\n";
+    // llvm::outs() << "Ignoring Internal Batching (target_slot = " << target_slot << ") for ";
+    // op.print(llvm::outs());
+    // llvm::outs() << " because it's return type is not BatchedSecret\n";
     // }
     return success();
 }
-
+class ConvToRotatesPattern : public OpConversionPattern<fhe::ConvOp> {
+public:
+  using OpConversionPattern<fhe::ConvOp>::OpConversionPattern;
+  LogicalResult matchAndRewrite(
+      fhe::ConvOp op, fhe::ConvOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto type = op.getType().dyn_cast<fhe::BatchedSecretType>();
+    if (!type || type.getSize() != 16384 ||
+        !type.getPlaintextType().isa<IntegerType>() ||
+        type.getPlaintextType().cast<IntegerType>().getWidth() != 16)
+      return failure();
+    for (auto v : op.getOperands())
+      if (v.getType() != type)
+        return failure();
+    auto loc = op.getLoc();
+    Value input = adaptor.getOperands()[0];
+    Value rot_33 = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(16351)); // 改为 SI32
+    Value rot_32 = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(16352));
+    Value rot_31 = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(16353));
+    Value rot_m1 = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(16383));
+    Value rot_0 = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(0)); // 改为 0 (16384 mod 16384)
+    Value rot_1 = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(1));
+    Value rot_31p = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(31));
+    Value rot_32p = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(32));
+    Value rot_33p = rewriter.create<fhe::RotateOp>(
+        loc, type, input, rewriter.getSI32IntegerAttr(33));
+    SmallVector<Value> rotates = {rot_33, rot_32, rot_31, rot_m1, rot_0,
+                                  rot_1, rot_31p, rot_32p, rot_33p};
+    SmallVector<Value> sums;
+    auto operands = adaptor.getOperands();
+    for (int block = 0; block < 16; ++block) {
+      SmallVector<Value> muls;
+      for (int j = 0; j < 9; ++j) {
+        Value kernel = operands[1 + block * 9 + j];
+        Value mul =
+            rewriter.create<fhe::MultiplyOp>(loc, type, ValueRange{rotates[j], kernel});
+        muls.push_back(mul);
+      }
+      Value sum = rewriter.create<fhe::AddOp>(loc, type, muls);
+      sums.push_back(sum);
+    }
+    Value bias = operands[145];
+    sums.push_back(bias);
+    Value result = rewriter.create<fhe::AddOp>(loc, type, sums);
+    rewriter.replaceOp(op, result);
+    return success();
+  }
+};
+class FcToRotatesPattern : public OpConversionPattern<fhe::FcOp> {
+public:
+  using OpConversionPattern<fhe::FcOp>::OpConversionPattern;
+  LogicalResult matchAndRewrite(
+      fhe::FcOp op, fhe::FcOpAdaptor adaptor,
+      ConversionPatternRewriter &rewriter) const override {
+    auto type = op.getType().dyn_cast<fhe::BatchedSecretType>();
+    if (!type || type.getSize() != 16384 ||
+        !type.getPlaintextType().isa<IntegerType>() ||
+        type.getPlaintextType().cast<IntegerType>().getWidth() != 16)
+      return failure();
+    for (auto v : op.getOperands())
+      if (v.getType() != type)
+        return failure();
+    auto loc = op.getLoc();
+    Value current = adaptor.getOperands()[0];
+    auto operands = adaptor.getOperands();
+    for (int i = 0; i < 10; ++i) {
+      Value weight = operands[1 + i];
+      Value bias = operands[11 + i];
+      Value mul = rewriter.create<fhe::MultiplyOp>(loc, type, ValueRange{current, weight});
+      Value prev = mul;
+      std::vector<int> shifts = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192};
+      for (size_t j = 0; j < shifts.size(); ++j) {
+        int shift = shifts[j];
+        Value rot = rewriter.create<fhe::RotateOp>(loc, type, prev, rewriter.getSI32IntegerAttr(shift));
+        if (j == shifts.size() - 1) {
+          current = rewriter.create<fhe::AddOp>(loc, type, ValueRange{prev, rot, bias});
+        } else {
+          Value add = rewriter.create<fhe::AddOp>(loc, type, ValueRange{prev, rot});
+          prev = add;
+        }
+      }
+    }
+    rewriter.replaceOp(op, current);
+    return success();
+  }
+};
 void InternalOperandBatchingPass::runOnOperation()
 {
     // Get the (default) block in the module's only region:
     auto &block = getOperation()->getRegion(0).getBlocks().front();
     IRRewriter rewriter(&getContext());
-
     for (auto f : llvm::make_early_inc_range(block.getOps<func::FuncOp>()))
     {
         // We must translate in order of appearance for this to work, so we walk manually
@@ -207,7 +275,6 @@ void InternalOperandBatchingPass::runOnOperation()
                  if (fhe::ExtractOp ex_op = llvm::dyn_cast_or_null<fhe::ExtractOp>(op))
                  {
                      auto target_slot = ex_op.getI().getLimitedValue();
-
                      for (auto o : ex_op.getOperation()->getOperands())
                      {
                          if (auto sub_op = llvm::dyn_cast_or_null<fhe::SubOp>(o.getDefiningOp()))
@@ -232,5 +299,16 @@ void InternalOperandBatchingPass::runOnOperation()
                  return WalkResult(success());
              }).wasInterrupted())
             signalPassFailure();
+    }
+    // After the original pass logic, perform the conv expansion
+    ConversionTarget target(getContext());
+    target.addLegalDialect<fhe::FHEDialect>();
+    target.addIllegalOp<fhe::ConvOp>();
+    target.addIllegalOp<fhe::FcOp>();
+    RewritePatternSet patterns(&getContext());
+    patterns.add<ConvToRotatesPattern>(patterns.getContext());
+    patterns.add<FcToRotatesPattern>(patterns.getContext());
+    if (failed(applyPartialConversion(getOperation(), target, std::move(patterns)))) {
+        signalPassFailure();
     }
 }

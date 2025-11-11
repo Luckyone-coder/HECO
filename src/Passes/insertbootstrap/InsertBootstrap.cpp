@@ -135,9 +135,9 @@ static void insertBootstrapIfNeeded(Operation *op, IRRewriter &rewriter,
             // 更新深度映射
             depthMap[bootstrapOp.getOutput()] = freshDepth;
             
-            llvm::outs() << "[InsertBootstrap] Inserted bootstrap before operation: " 
-                         << op->getName() << " (depth was " << depthMap[val] 
-                         << ", restored to " << freshDepth << ")\n";
+            // llvm::outs() << "[InsertBootstrap] Inserted bootstrap before operation: " 
+            //              << op->getName() << " (depth was " << depthMap[val] 
+            //              << ", restored to " << freshDepth << ")\n";
         }
     }
 }
@@ -158,21 +158,21 @@ void InsertBootstrapPass::runOnOperation() {
     // 深度映射表：Value -> 当前可用的乘法深度
     llvm::DenseMap<Value, unsigned> depthMap;
     
-    llvm::outs() << "[InsertBootstrap] Starting bootstrap insertion pass\n";
-    llvm::outs() << "  Initial depth: " << initialDepth << "\n";
-    llvm::outs() << "  Fresh depth: " << freshDepth << "\n";
-    llvm::outs() << "  Min threshold: " << minThreshold << "\n";
+    // llvm::outs() << "[InsertBootstrap] Starting bootstrap insertion pass\n";
+    // llvm::outs() << "  Initial depth: " << initialDepth << "\n";
+    // llvm::outs() << "  Fresh depth: " << freshDepth << "\n";
+    // llvm::outs() << "  Min threshold: " << minThreshold << "\n";
     
     // 遍历所有函数
     module.walk([&](func::FuncOp funcOp) {
-        llvm::outs() << "[InsertBootstrap] Processing function: " 
-                     << funcOp.getName() << "\n";
+        // llvm::outs() << "[InsertBootstrap] Processing function: " 
+        //              << funcOp.getName() << "\n";
         
         // 1. 初始化输入参数的深度
         for (auto arg : funcOp.getArguments()) {
             if (isCiphertextType(arg.getType())) {
                 depthMap[arg] = initialDepth;
-                llvm::outs() << "  Initialized arg depth: " << initialDepth << "\n";
+                // llvm::outs() << "  Initialized arg depth: " << initialDepth << "\n";
             }
         }
         
@@ -200,6 +200,6 @@ void InsertBootstrapPass::runOnOperation() {
         }
     });
     
-    llvm::outs() << "[InsertBootstrap] Bootstrap insertion pass completed\n";
+    // llvm::outs() << "[InsertBootstrap] Bootstrap insertion pass completed\n";
 }
 

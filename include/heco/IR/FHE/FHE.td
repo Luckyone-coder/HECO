@@ -316,10 +316,24 @@ def FHE_SigmoidOp: FHE_Op<"sigmoid", [AllTypesMatch<["x","output"]>]> {
 def FHE_ConvOp : FHE_Op<"conv", []> {
   let summary = "Convolution operation";
   let arguments = (ins
-    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$input,
-    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$weight,
-    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$bias,
-    I16:$kernel
+    Variadic<AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>>:$operands
+  );
+  let results = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$result);
+}
+
+def FHE_Conv_channelsOp : FHE_Op<"conv_channels", []> {
+  let summary = "FHE_Conv_channels operation";
+  let arguments = (ins
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r0,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r1,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r2,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r3,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r4,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r5,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r6,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r7,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r8,
+    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$r9
   );
   let results = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$result);
 }
@@ -334,7 +348,7 @@ def FHE_ReluOp : FHE_Op<"relu", []> {
 
 def FHE_PoolOp : FHE_Op<"pool", []> {
   let summary = "Pooling operation";
-  let arguments = (ins AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$x, I16:$kernel);
+  let arguments = (ins AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$x);
   let results   = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$output);
 }
 
@@ -348,9 +362,7 @@ def FHE_FlattenOp : FHE_Op<"flatten", []> {
 def FHE_FcOp : FHE_Op<"fc", []> {
   let summary = "Fully connected operation";
   let arguments = (ins
-    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$input,
-    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$weight,
-    AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$bias
+    Variadic<AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>>:$operands
   );
   let results   = (outs AnyTypeOf<[TensorOf<[Secret]>, BatchedSecret]>:$result);
 }

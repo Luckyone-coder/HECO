@@ -62,7 +62,7 @@ public:
 //        rewriter.replaceOpWithNewOp<emitc::CallOp>(
 //            op, TypeRange(dstType), llvm::StringRef("evaluator_rotate"), aa, ArrayAttr(), materialized_operands);
         rewriter.replaceOpWithNewOp<emitc::CallOp>(
-            op, TypeRange(dstType), llvm::StringRef("cc->EvalRotate"), aa, ArrayAttr(), materialized_operands);
+            op, TypeRange(dstType), llvm::StringRef("context->EvalRotate"), aa, ArrayAttr(), materialized_operands);
         return success();
     }
 };
@@ -293,25 +293,39 @@ public:
 
         std::string op_str = "";
         if (std::is_same<OpType, ckks::SubOp>())
-            op_str = "cc->EvalSub";
+            op_str = "context->EvalSub";
         else if (std::is_same<OpType, ckks::SubPlainOp>())
-            op_str = "cc->EvalSub";
+            op_str = "context->EvalSub";
         else if (std::is_same<OpType, ckks::AddOp>())
-            op_str = "cc->EvalAdd";
+            op_str = "context->EvalAdd";
         else if (std::is_same<OpType, ckks::AddPlainOp>())
-            op_str = "cc->EvalAdd";
+            op_str = "context->EvalAdd";
         else if (std::is_same<OpType, ckks::AddManyOp>())
-            op_str = "add_many";
+            op_str = "context->EvalAddMany";
         else if (std::is_same<OpType, ckks::MultiplyOp>())
-            op_str = "cc->EvalMult";
+            op_str = "context->EvalMult";
         else if (std::is_same<OpType, ckks::MultiplyPlainOp>())
-            op_str = "cc->EvalMult";
+            op_str = "context->EvalMult";
         else if (std::is_same<OpType, ckks::MultiplyManyOp>())
-            op_str = "cc->EvalMult";
+            op_str = "context->EvalMult";
         else if (std::is_same<OpType, ckks::ModswitchToOp>())
-            op_str = "modswitch_to";
+            op_str = "context->EvalModSwitchTo";
         else if (std::is_same<OpType, ckks::SigmoidOp>())
-            op_str = "sigmoid";
+            op_str = "context->EvalSigmoid";
+        else if (std::is_same<OpType, ckks::ConvOp>())
+            op_str = "context->EvalConv";
+        else if (std::is_same<OpType, ckks::ReluOp>())
+            op_str = "controller.relu";
+        else if (std::is_same<OpType, ckks::PoolOp>())
+            op_str = "controller.avgpool";
+        else if (std::is_same<OpType, ckks::FlattenOp>())
+            op_str = "context->EvalFlatten";
+        else if (std::is_same<OpType, ckks::FcOp>())
+            op_str = "context->EvalFc";
+        else if (std::is_same<OpType, ckks::SoftmaxOp>())
+            op_str = "context->EvalSoftmax";
+        else if (std::is_same<OpType, ckks::BootstrapOp>())
+            op_str = "context->EvalBootstrap";
         else
             return failure();
 
@@ -321,7 +335,7 @@ public:
             auto template_array = ArrayAttr::get(
                 rewriter.getContext(), { emitc::OpaqueAttr::get(rewriter.getContext(), "lbcrypto::Ciphertext<lbcrypto::DCRTPoly>") });
             emitc::CallOp v = rewriter.create<emitc::CallOp>(
-                op.getLoc(), TypeRange(emitc::OpaqueType::get(rewriter.getContext(), "std::vector<seal::Ciphertext>")),
+                op.getLoc(), TypeRange(emitc::OpaqueType::get(rewriter.getContext(), "std::vector<lbcrypto::Ciphertext<lbcrypto::DCRTPoly>>")),
                 llvm::StringRef("std::vector"), ArrayAttr(), template_array, ValueRange()); // 这里openfhe和seal 逻辑不通，暂时不动0-0
 
             size_t num_operands =
@@ -660,7 +674,10 @@ void LowerCKKSToEmitCOpenFHEPass::runOnOperation()
     patterns.add<
         CKKSOpenFHEBasicPattern<ckks::SubOp>, CKKSOpenFHEBasicPattern<ckks::SubPlainOp>, CKKSOpenFHEBasicPattern<ckks::AddOp>,
         CKKSOpenFHEBasicPattern<ckks::AddPlainOp>, CKKSOpenFHEBasicPattern<ckks::AddManyOp>, CKKSOpenFHEBasicPattern<ckks::MultiplyOp>,
-        CKKSOpenFHEBasicPattern<ckks::MultiplyPlainOp>, CKKSOpenFHEBasicPattern<ckks::MultiplyManyOp>,CKKSOpenFHEBasicPattern<ckks::SigmoidOp>,
+        CKKSOpenFHEBasicPattern<ckks::MultiplyPlainOp>, CKKSOpenFHEBasicPattern<ckks::MultiplyManyOp>, CKKSOpenFHEBasicPattern<ckks::SigmoidOp>,
+        CKKSOpenFHEBasicPattern<ckks::ConvOp>, CKKSOpenFHEBasicPattern<ckks::ReluOp>, CKKSOpenFHEBasicPattern<ckks::PoolOp>,
+        CKKSOpenFHEBasicPattern<ckks::FlattenOp>, CKKSOpenFHEBasicPattern<ckks::FcOp>, CKKSOpenFHEBasicPattern<ckks::SoftmaxOp>,
+        CKKSOpenFHEBasicPattern<ckks::BootstrapOp>,CKKSOpenFHEBasicPattern<ckks::MultiplyPlainOp>, CKKSOpenFHEBasicPattern<ckks::MultiplyManyOp>,CKKSOpenFHEBasicPattern<ckks::SigmoidOp>,
         CKKSOpenFHEBasicPattern<ckks::ModswitchToOp>, CKKSOpenFHELoadPattern<ckks::LoadCtxtOp>, CKKSOpenFHELoadPattern<ckks::LoadPtxtOp>,
         CKKSOpenFHELoadPattern<ckks::LoadPublicKeyOp>, CKKSOpenFHELoadPattern<ckks::LoadRelinKeysOp>,
         CKKSOpenFHELoadPattern<ckks::LoadGaloisKeysOp>, CKKSOpenFHERelinPattern, CKKSOpenFHERotatePattern, CKKSOpenFHEEncodePattern,

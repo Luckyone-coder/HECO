@@ -12,7 +12,7 @@ struct Tensor2BatchedSecretPass
 
     mlir::StringRef getArgument() const final
     {
-        return "tensor2fhe";
+        return "batchtype-transformation";
     }
 };
 

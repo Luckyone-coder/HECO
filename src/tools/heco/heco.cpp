@@ -195,8 +195,8 @@ void CKKSopenfhePipelineBuilder(OpPassManager &manager)
     manager.addPass(
         createCSEPass()); // try and remove all the redundant rotates, in the hope it also gives us less combine ops?
     manager.addPass(std::make_unique<CombineSimplifyPass>());
-    manager.addPass(createCSEPass()); // otherwise, the internal batching pass has no "same origin" things to find!
     manager.addPass(createCanonicalizerPass());
+    manager.addPass(createCSEPass()); // otherwise, the internal batching pass has no "same origin" things to find!
 
     manager.addPass(std::make_unique<InternalOperandBatchingPass>());
     manager.addPass(createCanonicalizerPass());
@@ -207,10 +207,11 @@ void CKKSopenfhePipelineBuilder(OpPassManager &manager)
     manager.addPass(createCanonicalizerPass());
     manager.addPass(createCSEPass());
 
-    // Insert bootstrap operations when CKKS multiplicative depth is insufficient
+    //Insert bootstrap operations when CKKS multiplicative depth is insufficient
     manager.addPass(std::make_unique<InsertBootstrapPass>());
     manager.addPass(createCanonicalizerPass());
-
+    manager.addPass(createCSEPass());
+    
     manager.addPass(std::make_unique<LowerCKKSToEmitCOpenFHEPass>());
     manager.addPass(createCanonicalizerPass()); // necessary to remove redundant fhe.materialize
     manager.addPass(createCSEPass());

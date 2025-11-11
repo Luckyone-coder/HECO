@@ -1,3 +1,4 @@
+
 #ifndef TOOLCHAIN_CKKS_CKKS_TD_
 #define TOOLCHAIN_CKKS_CKKS_TD_
 
@@ -649,15 +650,13 @@ def CKKS_BootstrapOp : CKKS_Op<"bootstrap", []> {
   let results = (outs Ciphertext:$output);
 }
 
-def CKKS_ConvOp : CKKS_Op<"conv", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+def CKKS_ConvOp : CKKS_Op<"conv", []> {
 
   let summary = "conv.";
 
   let arguments = (ins
-    Ciphertext:$x,
-    Ciphertext:$y,
-    Ciphertext:$z,
-    Plaintext:$conv_k);
+    Variadic<Ciphertext>:$x
+  );
 
   let results = (outs
     Ciphertext:$output
@@ -665,7 +664,7 @@ def CKKS_ConvOp : CKKS_Op<"conv", [DeclareOpInterfaceMethods<InferTypeOpInterfac
 
 }
 
-def CKKS_ReluOp : CKKS_Op<"relu", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+def CKKS_ReluOp : CKKS_Op<"relu", []> {
 
   let summary = "relu.";
 
@@ -679,13 +678,12 @@ def CKKS_ReluOp : CKKS_Op<"relu", [DeclareOpInterfaceMethods<InferTypeOpInterfac
 
 }
 
-def CKKS_PoolOp : CKKS_Op<"pool", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+def CKKS_PoolOp : CKKS_Op<"pool", []> {
 
   let summary = "pool.";
 
   let arguments = (ins
-    Ciphertext:$x,
-    Plaintext:$pool_k
+    Ciphertext:$x
 );
 
   let results = (outs
@@ -695,7 +693,7 @@ def CKKS_PoolOp : CKKS_Op<"pool", [DeclareOpInterfaceMethods<InferTypeOpInterfac
 }
 
 
-def CKKS_FlattenOp : CKKS_Op<"flatten", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+def CKKS_FlattenOp : CKKS_Op<"flatten", []> {
 
   let summary = "flatten.";
 
@@ -709,14 +707,13 @@ def CKKS_FlattenOp : CKKS_Op<"flatten", [DeclareOpInterfaceMethods<InferTypeOpIn
 
 }
 
-def CKKS_FcOp : CKKS_Op<"fc", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+def CKKS_FcOp : CKKS_Op<"fc", []> {
 
   let summary = "fc.";
 
   let arguments = (ins
-    Ciphertext:$x,
-    Ciphertext:$y,
-    Ciphertext:$z);
+    Variadic<Ciphertext>:$x
+  );
 
   let results = (outs
     Ciphertext:$output
@@ -724,7 +721,7 @@ def CKKS_FcOp : CKKS_Op<"fc", [DeclareOpInterfaceMethods<InferTypeOpInterface>, 
 
 }
 
-def CKKS_SoftmaxOp : CKKS_Op<"softmax", [DeclareOpInterfaceMethods<InferTypeOpInterface>, Pure]> {
+def CKKS_SoftmaxOp : CKKS_Op<"softmax", []> {
 
   let summary = "softmax.";
 

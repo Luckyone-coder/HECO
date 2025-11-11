@@ -23,8 +23,8 @@ struct InsertBootstrapPass : public mlir::PassWrapper<InsertBootstrapPass, mlir:
     }
 
     // 可配置参数
-    unsigned initialDepth = 3;     // 输入密文的初始乘法深度
-    unsigned freshDepth = 3;       // Bootstrap后的新深度
+    unsigned initialDepth = 7;     // 输入密文的初始乘法深度
+    unsigned freshDepth = 7;       // Bootstrap后的新深度
     unsigned minThreshold = 1;      // 触发Bootstrap的最小深度阈值
 };
 

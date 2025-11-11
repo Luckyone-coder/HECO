@@ -12,7 +12,7 @@ struct BatchingPass : public mlir::PassWrapper<BatchingPass, mlir::OperationPass
 
     mlir::StringRef getArgument() const final
     {
-        return "batching";
+        return "findtargetslot";
     }
 };
 
